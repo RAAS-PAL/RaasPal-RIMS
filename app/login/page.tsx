@@ -1,8 +1,8 @@
 import { KeyRound, ShieldCheck, Warehouse } from "lucide-react";
 import type { Metadata } from "next";
-import Image from "next/image";
 import { redirect } from "next/navigation";
 
+import { Mark, Wordmark } from "@/components/brand";
 import { SignInForm } from "@/components/auth/sign-in-form";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -33,14 +33,7 @@ export default async function LoginPage() {
     <div className="grid min-h-dvh lg:grid-cols-[1fr_28rem]">
       {/* Identity panel — the one place the wordmark gets room to breathe. */}
       <section className="relative hidden flex-col justify-between bg-chrome px-10 py-12 lg:flex xl:px-14">
-        <Image
-          src="/brand/raaspal-wordmark.png"
-          alt="RaasPal — Robot as a Service"
-          width={800}
-          height={200}
-          priority
-          className="h-14 w-auto"
-        />
+        <Wordmark alt="RaasPal — Robot as a Service" className="h-14" priority />
 
         <div className="max-w-lg">
           <p className="eyebrow !text-[var(--brand-400)]">Internal system</p>
@@ -81,22 +74,8 @@ export default async function LoginPage() {
       <section className="flex flex-col justify-center px-5 py-10 sm:px-10">
         <div className="mx-auto w-full max-w-sm">
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <Image
-              src="/brand/raaspal-mark.png"
-              alt=""
-              width={40}
-              height={40}
-              priority
-              className="size-10"
-            />
-            <Image
-              src="/brand/raaspal-wordmark.png"
-              alt="RaasPal"
-              width={480}
-              height={120}
-              priority
-              className="h-7 w-auto"
-            />
+            <Mark className="size-10" priority />
+            <Wordmark className="h-7" priority />
           </div>
 
           <p className="eyebrow">Sign in</p>

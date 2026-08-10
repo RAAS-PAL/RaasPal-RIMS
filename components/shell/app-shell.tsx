@@ -13,11 +13,11 @@ import {
   Warehouse,
   X,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 
+import { Mark, Wordmark } from "@/components/brand";
 import { CATEGORY_META, CATEGORY_ORDER, WAREHOUSES } from "@/lib/catalog";
 import { cx, initials, num } from "@/lib/format";
 import { can, describeRoles } from "@/lib/rbac";
@@ -164,22 +164,8 @@ function Sidebar({
           className="group min-w-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-400)]"
         >
           <span className="flex items-center gap-2.5">
-            <Image
-              src="/brand/raaspal-mark.png"
-              alt=""
-              width={34}
-              height={34}
-              priority
-              className="size-[34px] shrink-0"
-            />
-            <Image
-              src="/brand/raaspal-wordmark.png"
-              alt="RaasPal"
-              width={480}
-              height={120}
-              priority
-              className="h-[26px] w-auto"
-            />
+            <Mark className="size-[34px]" priority />
+            <Wordmark className="h-[26px]" priority />
           </span>
           <span className="mt-3 block border-t border-white/10 pt-2.5 font-display text-[0.6875rem] font-medium uppercase leading-tight tracking-[0.11em] text-white/45 transition-colors group-hover:text-white/70">
             Robot Inventory
