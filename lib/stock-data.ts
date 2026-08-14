@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 
 import { BackendError, callBackend, isMissingEndpoint } from "./backend";
 import type {
@@ -17,8 +18,14 @@ import type {
  * property is worth keeping: everything that talks to the backend for stock lives in
  * this file and `stock-actions.ts`, and nothing else in RIMS knows a network exists.
  *
- * <p>Nothing is cached. A stock figure that lags reality is worse than a page that
- * takes another moment, because someone acts on it.
+ * <p>Nothing is cached <em>between</em> requests. A stock figure that lags reality is
+ * worse than a page that takes another moment, because someone acts on it.
+ *
+ * <p>Reads the app shell needs are wrapped in React's {@link cache}, which is a
+ * different thing: it deduplicates within a single render, not across requests. The
+ * layout needs the robot list for the sidebar counts and `/robots` needs the same list
+ * for the page — without this that is two identical round trips to Render on every
+ * navigation, and the answer cannot differ between them because it is one request.
  */
 
 export async function listInventoryItems(options?: {
@@ -37,8 +44,13 @@ export async function listInventoryItems(options?: {
   return page?.content ?? [];
 }
 
-/** Dashboard header, including the low-stock alert. */
-export async function getInventorySummary(): Promise<InventorySummaryResponse> {
+/**
+ * Dashboard header, including the low-stock alert.
+ *
+ * <p>Deduplicated: the layout reads it for the bell badge and the dashboard and
+ * inventory pages read it again for their tiles.
+ */
+export const getInventorySummary = cache(async (): Promise<InventorySummaryResponse> => {
   return (
     (await callBackend<InventorySummaryResponse>("/api/v1/inventory/summary")) ?? {
       totalItems: 0,
@@ -49,7 +61,7 @@ export async function getInventorySummary(): Promise<InventorySummaryResponse> {
       lowStockItems: [],
     }
   );
-}
+});
 
 /**
  * Recent stock movements across every part — the activity feed.
@@ -87,10 +99,14 @@ export async function listInventoryCategories(): Promise<string[]> {
  * <p>Nothing here reaches into `robot_units`: that record covers machines already at
  * customers, which is a different question and a far more consequential table.
  */
-export async function listRobotStock(status?: "IN_STOCK" | "DEMO"): Promise<RobotStockEntryResponse[]> {
-  const query = status ? `?status=${status}` : "";
-  return (await callBackend<RobotStockEntryResponse[]>(`/api/v1/inventory/robot-stock${query}`)) ?? [];
-}
+export const listRobotStock = cache(
+  async (status?: "IN_STOCK" | "DEMO"): Promise<RobotStockEntryResponse[]> => {
+    const query = status ? `?status=${status}` : "";
+    return (
+      (await callBackend<RobotStockEntryResponse[]>(`/api/v1/inventory/robot-stock${query}`)) ?? []
+    );
+  },
+);
 
 /**
  * One robot entry, or null when the id genuinely does not exist.
