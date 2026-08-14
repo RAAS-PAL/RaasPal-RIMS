@@ -42,8 +42,13 @@ export function DeleteRobotButton({ id, name }: { id: string; name: string }) {
             detail={name}
             submitLabel="Remove"
             // Back to the list: staying on a page whose record no longer exists would
-            // render a "not found" the moment anything refreshed.
-            onDone={() => router.push("/robots")}
+            // render a "not found" the moment anything refreshed. refresh() too, so the
+            // sidebar counts drop the removed units — the layout holding them is not
+            // re-rendered by navigation alone.
+            onDone={() => {
+              router.push("/robots");
+              router.refresh();
+            }}
           >
             <input type="hidden" name="id" value={id} />
           </AuthorizedForm>

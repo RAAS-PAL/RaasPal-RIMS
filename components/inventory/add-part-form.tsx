@@ -1,6 +1,7 @@
 "use client";
 
 import { PackagePlus, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { AuthorizedForm } from "@/components/ui/authorized-form";
@@ -20,6 +21,7 @@ import { createInventoryItemAction } from "@/lib/stock-actions";
  * two people adding parts at the same moment cannot collide on it.
  */
 export function AddPartForm({ categories }: { categories: string[] }) {
+  const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
 
@@ -77,7 +79,12 @@ export function AddPartForm({ categories }: { categories: string[] }) {
                 intent="Add this part to the inventory record"
                 detail="New part"
                 submitLabel="Add part"
-                onDone={() => setOpen(false)}
+                onDone={() => {
+                  setOpen(false);
+                  // The bell badge counts low-stock parts from the app layout, which
+                  // navigation alone never re-renders.
+                  router.refresh();
+                }}
                 onCancel={() => setOpen(false)}
               >
                 <div className="grid gap-4 sm:grid-cols-2">

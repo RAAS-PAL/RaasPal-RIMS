@@ -43,7 +43,17 @@ export function RobotStockForm({
 
   // Leaving the form is what makes a save feel finished: staying on a filled-in form
   // after "Robot added" reads as though nothing happened, and invites a second submit.
-  const leave = redirectTo ? () => router.push(redirectTo) : undefined;
+  //
+  // refresh() as well as push(), because the sidebar counts live in the app layout and
+  // a layout is not re-rendered when you navigate between pages inside it — Next
+  // fetches only the changed segment. Without this the rail keeps the totals from your
+  // last full page load, so adding 27 delivery units leaves "Delivery 17" on screen.
+  const leave = redirectTo
+    ? () => {
+        router.push(redirectTo);
+        router.refresh();
+      }
+    : undefined;
 
   return (
     <Panel>

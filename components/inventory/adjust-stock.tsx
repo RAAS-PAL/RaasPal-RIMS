@@ -1,6 +1,7 @@
 "use client";
 
 import { Minus, Plus, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { AuthorizedForm } from "@/components/ui/authorized-form";
@@ -21,6 +22,7 @@ import { adjustStockAction } from "@/lib/stock-actions";
  * a warehouse operator to type a minus sign is how stock gets added when it left.
  */
 export function AdjustStock({ item }: { item: InventoryItemResponse }) {
+  const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
   const [movementType, setMovementType] = useState("RECEIPT");
@@ -80,7 +82,12 @@ export function AdjustStock({ item }: { item: InventoryItemResponse }) {
                 intent={`Record a stock movement against ${item.name}`}
                 detail={item.sku}
                 submitLabel="Record movement"
-                onDone={() => setOpen(false)}
+                onDone={() => {
+                  setOpen(false);
+                  // The bell badge counts low-stock parts from the app layout, which
+                  // navigation alone never re-renders.
+                  router.refresh();
+                }}
                 onCancel={() => setOpen(false)}
               >
                 <input type="hidden" name="itemId" value={item.id} />
