@@ -1,3 +1,4 @@
+import { cache } from "react";
 import "server-only";
 
 import { cookies } from "next/headers";
@@ -64,12 +65,17 @@ export async function endSession(): Promise<void> {
 /**
  * Who is signed in, according to the backend.
  *
- * <p>Asks `/auth/me` on every call rather than trusting claims decoded from the
- * cookie. It costs a request, but it means a deactivated account or a changed role
+ * <p>Asks `/auth/me` once per request rather than trusting claims decoded from the
+ * cookie. It costs a round trip, but it means a deactivated account or a changed role
  * takes effect immediately instead of lingering until the token expires — which for
  * a twelve-hour token is most of a working day.
+ *
+ * <p>{@link cache} makes that "once per request" rather than once per caller. The
+ * layout guards itself and so does every page, so a single navigation asked the
+ * backend who you were twice — sequentially, and before any data could be fetched.
+ * Deduplicating cannot weaken the check: it is still one live call per request.
  */
-export async function getCurrentUser(): Promise<SessionUser | null> {
+export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const store = await cookies();
   if (!store.get(SESSION_COOKIE)?.value) return null;
 
@@ -86,7 +92,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     }
     throw error;
   }
-}
+});
 
 /** For pages: sends anyone without a live session to sign in. */
 export async function requireUser(): Promise<SessionUser> {
