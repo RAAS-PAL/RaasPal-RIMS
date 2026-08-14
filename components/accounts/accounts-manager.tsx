@@ -12,11 +12,9 @@ import { useState } from "react";
 
 import {
   createUserAction,
-  resetUserPinAction,
   setUserActiveAction,
   updateUserRolesAction,
 } from "@/lib/actions";
-import { WAREHOUSES } from "@/lib/catalog";
 import { cx, day, since } from "@/lib/format";
 import { ROLE_DESCRIPTION, ROLE_LABEL } from "@/lib/rbac";
 import { ROLES, type Role } from "@/lib/types";
@@ -94,33 +92,15 @@ export function AccountsManager({
                 <Field label="Full name" htmlFor="new-name" required>
                   <TextInput id="new-name" name="name" required maxLength={80} />
                 </Field>
+                {/* Email is the sign-in identity — the platform has no username, and
+                    no per-user home site now that stock is tracked per unit. */}
                 <Field
-                  label="Username"
-                  htmlFor="new-username"
-                  hint="Lowercase, 3–24 characters. This is what they type to sign in."
+                  label="Email"
+                  htmlFor="new-email"
+                  hint="This is what they sign in with, across the whole platform."
                   required
                 >
-                  <TextInput
-                    id="new-username"
-                    name="username"
-                    required
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    pattern="[a-zA-Z0-9._-]{3,24}"
-                    className="font-mono"
-                  />
-                </Field>
-                <Field label="Email" htmlFor="new-email" required>
                   <TextInput id="new-email" name="email" type="email" required />
-                </Field>
-                <Field label="Home site" htmlFor="new-warehouse">
-                  <Select id="new-warehouse" name="warehouse" defaultValue={WAREHOUSES[0].code}>
-                    {WAREHOUSES.map((site) => (
-                      <option key={site.code} value={site.code}>
-                        {site.code} · {site.name}
-                      </option>
-                    ))}
-                  </Select>
                 </Field>
                 <Field
                   label="Temporary password"
@@ -137,42 +117,19 @@ export function AccountsManager({
                     autoComplete="off"
                   />
                 </Field>
-                <Field
-                  label="Six-digit PIN"
-                  htmlFor="new-pin"
-                  hint="They will type this to confirm every change they save."
-                  required
-                >
-                  <TextInput
-                    id="new-pin"
-                    name="new_pin"
-                    inputMode="numeric"
-                    pattern="\d{6}"
-                    maxLength={6}
-                    required
-                    autoComplete="off"
-                    className="font-mono tracking-[0.3em]"
-                  />
-                </Field>
               </div>
 
-              <Fieldset
-                legend="Roles"
-                hint="Choose every role this person needs. Permissions are the union."
-                className="mt-4"
-              >
-                <div className="grid gap-2 sm:grid-cols-3">
+              {/* One role, not several. The platform stores a single role per
+                  account, so checkboxes would collapse silently on save — better to
+                  make the choice exclusive than to accept input that cannot be kept. */}
+              <Fieldset legend="Role" hint="What this person is allowed to do." className="mt-4">
+                <Select name="roles" defaultValue="viewer" aria-label="Role">
                   {ROLES.map((role) => (
-                    <CheckboxRow
-                      key={role}
-                      name="roles"
-                      value={role}
-                      defaultChecked={role === "viewer"}
-                      label={ROLE_LABEL[role]}
-                      description={ROLE_DESCRIPTION[role]}
-                    />
+                    <option key={role} value={role}>
+                      {ROLE_LABEL[role]} — {ROLE_DESCRIPTION[role]}
+                    </option>
                   ))}
-                </div>
+                </Select>
               </Fieldset>
             </AuthorizedForm>
           </PanelBody>
@@ -302,36 +259,18 @@ function AccountRowView({
               </div>
 
               <div className="space-y-3">
+                {/* Passwords and any reset flow belong to the RAASPAL platform, which
+                    owns identity now. RIMS holds no credential it could reset. */}
                 <div className="rounded-lg border border-line bg-surface p-4">
-                  <p className="mb-3 flex items-center gap-1.5 text-[0.8125rem] font-semibold">
+                  <p className="mb-2 flex items-center gap-1.5 text-[0.8125rem] font-semibold">
                     <KeyRound size={14} aria-hidden className="text-muted" />
-                    Reset PIN
+                    Password
                   </p>
-                  <AuthorizedForm
-                    action={resetUserPinAction}
-                    intent={`Set a new confirmation PIN for ${account.name}`}
-                    detail={`${account.name} · ${account.username}`}
-                    submitLabel="Set new PIN"
-                  >
-                    <input type="hidden" name="user_id" value={account.id} />
-                    <Field
-                      label="New six-digit PIN"
-                      htmlFor={`pin-${account.id}`}
-                      hint="Tell them in person. PINs are never sent by email."
-                      required
-                    >
-                      <TextInput
-                        id={`pin-${account.id}`}
-                        name="new_pin"
-                        inputMode="numeric"
-                        pattern="\d{6}"
-                        maxLength={6}
-                        required
-                        autoComplete="off"
-                        className="font-mono tracking-[0.3em]"
-                      />
-                    </Field>
-                  </AuthorizedForm>
+                  <p className="text-[0.75rem] leading-relaxed text-muted">
+                    Held by the RAASPAL platform, not here. If {account.name} is locked
+                    out, deactivate the account below or ask a platform administrator to
+                    issue a new password.
+                  </p>
                 </div>
 
                 <div

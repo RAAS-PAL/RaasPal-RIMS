@@ -4,19 +4,26 @@ import { Search, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import { CATEGORY_META, CATEGORY_ORDER, WAREHOUSES } from "@/lib/catalog";
-import { cx } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/field";
+import { cx } from "@/lib/format";
 
-const VIEWS = [
-  { value: "", label: "All robots" },
-  { value: "attention", label: "Needs attention" },
-  { value: "demo", label: "Has demo units" },
-  { value: "reserved", label: "Has reservations" },
-] as const;
-
-export function InventoryFilters({ resultCount }: { resultCount: number }) {
+/**
+ * Search and narrow the parts list.
+ *
+ * <p>Every control here maps to a query the backend actually supports — `q`,
+ * `category`, `lowStock`. The version this replaces offered filters for site,
+ * reservations and demo units, none of which a part record has; they looked like
+ * they worked and silently returned everything.
+ */
+export function PartsFilters({
+  categories,
+  resultCount,
+}: {
+  /** Distinct categories in use, from the database. */
+  categories: string[];
+  resultCount: number;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -36,6 +43,7 @@ export function InventoryFilters({ resultCount }: { resultCount: number }) {
     });
   }
 
+  // Debounced so a search does not fire a round trip per keystroke.
   useEffect(() => {
     if (firstRender.current) {
       firstRender.current = false;
@@ -48,10 +56,9 @@ export function InventoryFilters({ resultCount }: { resultCount: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  const site = params.get("site") ?? "";
-  const view = params.get("view") ?? "";
   const category = params.get("category") ?? "";
-  const filtered = Boolean(query || site || view || category);
+  const lowStock = params.get("lowStock") === "true";
+  const filtered = Boolean(query || category || lowStock);
 
   return (
     <div className="mb-5 rounded-lg border border-line bg-surface p-3">
@@ -66,8 +73,8 @@ export function InventoryFilters({ resultCount }: { resultCount: number }) {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Filter by name or model ID"
-            aria-label="Filter inventory by name or model ID"
+            placeholder="Search by name, SKU or part number"
+            aria-label="Search parts by name, SKU or part number"
             className={cx(
               "h-9 w-full rounded-md border border-line-strong bg-surface pl-9 pr-3 text-sm",
               "placeholder:text-faint transition-colors duration-150",
@@ -76,55 +83,39 @@ export function InventoryFilters({ resultCount }: { resultCount: number }) {
           />
         </div>
 
-        <Select
-          value={site}
-          onChange={(event) => commit({ site: event.target.value })}
-          aria-label="Filter by site"
-          className="w-auto min-w-44"
-        >
-          <option value="">All sites, rolled up</option>
-          {WAREHOUSES.map((warehouse) => (
-            <option key={warehouse.code} value={warehouse.code}>
-              {warehouse.code} · {warehouse.city}
-            </option>
-          ))}
-        </Select>
+        {/* Hidden entirely when nothing is categorised yet, rather than offering a
+            select with one empty option in it. */}
+        {categories.length > 0 ? (
+          <Select
+            value={category}
+            onChange={(event) => commit({ category: event.target.value })}
+            aria-label="Filter by category"
+            className="w-auto min-w-40"
+          >
+            <option value="">All categories</option>
+            {categories.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </Select>
+        ) : null}
 
-        <Select
-          value={category}
-          onChange={(event) => commit({ category: event.target.value })}
-          aria-label="Filter by category"
-          className="w-auto min-w-36"
+        <Button
+          variant={lowStock ? "primary" : "secondary"}
+          size="sm"
+          aria-pressed={lowStock}
+          onClick={() => commit({ lowStock: lowStock ? "" : "true" })}
         >
-          <option value="">All categories</option>
-          {CATEGORY_ORDER.map((id) => (
-            <option key={id} value={id}>
-              {CATEGORY_META[id].label}
-            </option>
-          ))}
-        </Select>
-
-        <Select
-          value={view}
-          onChange={(event) => commit({ view: event.target.value })}
-          aria-label="Filter by stock condition"
-          className="w-auto min-w-40"
-        >
-          {VIEWS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
+          Needs restocking
+        </Button>
       </div>
 
       <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2.5">
         <p aria-live="polite" className="text-[0.75rem] text-muted">
-          <span className="font-mono font-semibold tabular-nums text-fg">
-            {resultCount}
-          </span>{" "}
-          {resultCount === 1 ? "robot" : "robots"}
-          {site ? ` · counts shown for ${site}` : " · counts rolled up across all sites"}
+          <span className="font-mono font-semibold tabular-nums text-fg">{resultCount}</span>{" "}
+          {resultCount === 1 ? "part" : "parts"}
+          {lowStock ? " · at or below the reorder point" : ""}
         </p>
         {filtered ? (
           <Button
@@ -132,7 +123,7 @@ export function InventoryFilters({ resultCount }: { resultCount: number }) {
             size="sm"
             onClick={() => {
               setQuery("");
-              commit({ q: "", site: "", view: "", category: "" });
+              commit({ q: "", category: "", lowStock: "" });
             }}
           >
             <X size={14} aria-hidden />

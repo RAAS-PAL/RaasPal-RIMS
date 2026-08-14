@@ -6,17 +6,16 @@ import { redirect } from "next/navigation";
 import { fail, ok, type ActionState } from "./action-state";
 import {
   authorize,
-  changeOwnPin,
   endSession,
   getCurrentUser,
-  hashSecret,
-  listUsers,
-  mutateUsers,
   signIn,
-  startSession,
+  createUser,
+  updateUser,
 } from "./auth";
 import { leaseSchedule, maintenanceSchedule, warehouseName } from "./catalog";
 import { baht, num } from "./format";
+import { backendRoleForRoles } from "./backend-types";
+import { describeBackendError } from "./backend";
 import { can } from "./rbac";
 import { commitRobotChange } from "./store";
 import { ROLES, type ActivityEntry, type Role, type Spec } from "./types";
@@ -45,14 +44,19 @@ export async function signInAction(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const username = text(formData, "username");
+  // The field is still named "username" so the existing form keeps working, but the
+  // platform identifies people by email. Accepting either spelling avoids breaking
+  // anyone mid-migration.
+  const identity = text(formData, "email") || text(formData, "username");
   const password = String(formData.get("password") ?? "");
-  if (!username || !password) {
-    return fail("Enter your username and password.");
+  if (!identity || !password) {
+    return fail("Enter your email address and password.");
   }
-  const result = await signIn(username, password);
+
+  // signIn sets the session itself: it is the only place holding the backend's
+  // token, and handing it back for the caller to store would invite forgetting to.
+  const result = await signIn(identity, password);
   if (!result.ok) return fail(result.error);
-  await startSession(result.user.id);
   redirect("/");
 }
 
@@ -61,18 +65,15 @@ export async function signOutAction(): Promise<void> {
   redirect("/login");
 }
 
-export async function changePinAction(
-  _previous: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  const current = text(formData, "current_pin");
-  const next = text(formData, "next_pin");
-  const confirm = text(formData, "confirm_pin");
-  if (next !== confirm) return fail("The two new PINs do not match.");
-  const result = await changeOwnPin(current, next);
-  if (!result.ok) return fail(result.error);
-  return ok("PIN updated. Use the new one to confirm your next change.");
-}
+/*
+ * changePinAction and resetUserPinAction were removed with the PIN itself.
+ *
+ * The PIN was a second factor over a JSON file that had no other access control.
+ * Identity is now the backend's, and every write is checked against a signed JWT and
+ * a server-side role — so the PIN guarded nothing the API did not already guard, and
+ * keeping it would have meant storing a secret in RIMS that the backend knows nothing
+ * about. Password changes belong to the backend and do not exist there yet.
+ */
 
 /* ---------------------------------------------------------------------------
    Robot content
@@ -83,7 +84,7 @@ export async function updateOverviewAction(
   formData: FormData,
 ): Promise<ActionState> {
   const slug = text(formData, "slug");
-  const auth = await authorize("content:write", text(formData, "pin"));
+  const auth = await authorize("content:write");
   if (!auth.ok) return fail(auth.error);
 
   const name = text(formData, "name");
@@ -137,7 +138,7 @@ export async function updateSpecsAction(
   formData: FormData,
 ): Promise<ActionState> {
   const slug = text(formData, "slug");
-  const auth = await authorize("content:write", text(formData, "pin"));
+  const auth = await authorize("content:write");
   if (!auth.ok) return fail(auth.error);
 
   const labels = formData.getAll("spec_label").map((v) => String(v).trim());
@@ -205,7 +206,7 @@ export async function updateMediaAction(
   formData: FormData,
 ): Promise<ActionState> {
   const slug = text(formData, "slug");
-  const auth = await authorize("media:write", text(formData, "pin"));
+  const auth = await authorize("media:write");
   if (!auth.ok) return fail(auth.error);
 
   const image = text(formData, "image") || null;
@@ -250,7 +251,7 @@ export async function updatePricingAction(
   formData: FormData,
 ): Promise<ActionState> {
   const slug = text(formData, "slug");
-  const auth = await authorize("price:write", text(formData, "pin"));
+  const auth = await authorize("price:write");
   if (!auth.ok) return fail(auth.error);
 
   const buyOff = digits(formData, "buy_off");
@@ -295,7 +296,7 @@ export async function updateStockAction(
   formData: FormData,
 ): Promise<ActionState> {
   const slug = text(formData, "slug");
-  const auth = await authorize("stock:write", text(formData, "pin"));
+  const auth = await authorize("stock:write");
   if (!auth.ok) return fail(auth.error);
 
   const codes = formData.getAll("loc_code").map((v) => String(v));
@@ -391,7 +392,7 @@ export async function adjustStockAction(
   formData: FormData,
 ): Promise<ActionState> {
   const slug = text(formData, "slug");
-  const auth = await authorize("stock:write", text(formData, "pin"));
+  const auth = await authorize("stock:write");
   if (!auth.ok) return fail(auth.error);
 
   const code = text(formData, "code");
@@ -442,165 +443,109 @@ export async function adjustStockAction(
   refreshEverything();
   return ok(`${delta > 0 ? "Added" : "Removed"} ${Math.abs(delta)} at ${code}.`);
 }
-
 /* ---------------------------------------------------------------------------
    Accounts — admin only
+
+   Backed by the Java service. RIMS no longer stores accounts or password hashes:
+   data/users.json is gone, and so is the PIN. The last-admin guard now lives in
+   UserService, where it belongs — a check enforced only here could be bypassed by
+   calling the API directly.
 --------------------------------------------------------------------------- */
 
-function parseRoles(formData: FormData): Role[] {
+/**
+ * The backend stores one role per account, so a multi-select would silently
+ * collapse on save. The form offers a single choice; this reads it defensively in
+ * case an older form posts several.
+ */
+function parseRole(formData: FormData): Role {
   const selected = formData
     .getAll("roles")
     .map((value) => String(value))
     .filter((value): value is Role => (ROLES as readonly string[]).includes(value));
-  return selected.length > 0 ? selected : ["viewer"];
+  return selected.includes("admin")
+    ? "admin"
+    : selected.includes("editor")
+      ? "editor"
+      : "viewer";
 }
 
 export async function createUserAction(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const auth = await authorize("users:manage", text(formData, "pin"));
+  const auth = await authorize("users:manage");
   if (!auth.ok) return fail(auth.error);
 
-  const username = text(formData, "username").toLowerCase();
   const name = text(formData, "name");
-  const email = text(formData, "email");
-  const warehouse = text(formData, "warehouse");
+  const email = text(formData, "email").toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const newPin = text(formData, "new_pin");
-  const roles = parseRoles(formData);
+  const role = parseRole(formData);
 
-  if (!/^[a-z0-9._-]{3,24}$/.test(username)) {
-    return fail("A username is 3–24 characters: letters, numbers, dot, dash or underscore.");
-  }
   if (!name) return fail("Enter the person's full name.");
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Enter a valid email address.");
+  // The backend requires 8; 10 is this team's own floor and there is no reason to
+  // lower it just because the API would accept less.
   if (password.length < 10) return fail("A password must be at least 10 characters.");
-  if (!/^\d{6}$/.test(newPin)) return fail("A PIN must be exactly six digits.");
 
-  const existing = await listUsers();
-  if (existing.some((user) => user.username === username)) {
-    return fail(`The username "${username}" is already taken.`);
+  try {
+    await createUser({
+      email,
+      password,
+      fullName: name,
+      role: backendRoleForRoles([role]),
+    });
+  } catch (error) {
+    return fail(describeBackendError(error, "That account could not be created."));
   }
 
-  const [passwordHash, pinHash] = await Promise.all([
-    hashSecret(password),
-    hashSecret(newPin),
-  ]);
-
-  await mutateUsers((users) => ({
-    users: [
-      ...users,
-      {
-        id: `u-${Date.now().toString(36)}`,
-        username,
-        name,
-        email,
-        roles,
-        warehouse,
-        passwordHash,
-        pinHash,
-        active: true,
-        createdAt: new Date().toISOString(),
-        lastSignInAt: null,
-      },
-    ],
-    result: null,
-  }));
-
   refreshEverything();
-  return ok(`${name} can now sign in as "${username}".`);
+  return ok(`${name} can now sign in with ${email}.`);
 }
 
 export async function updateUserRolesAction(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const auth = await authorize("users:manage", text(formData, "pin"));
+  const auth = await authorize("users:manage");
   if (!auth.ok) return fail(auth.error);
 
   const userId = text(formData, "user_id");
-  const roles = parseRoles(formData);
-  const users = await listUsers();
-  const target = users.find((user) => user.id === userId);
-  if (!target) return fail("That account no longer exists.");
+  const role = parseRole(formData);
 
-  /* Never let the last admin drop their own admin role and lock everyone out. */
-  const admins = users.filter((user) => user.active && user.roles.includes("admin"));
-  if (
-    target.roles.includes("admin") &&
-    !roles.includes("admin") &&
-    admins.length === 1
-  ) {
-    return fail("This is the only admin account. Promote someone else first.");
+  try {
+    const updated = await updateUser(userId, { role: backendRoleForRoles([role]) });
+    refreshEverything();
+    return ok(`Role updated for ${updated.fullName}.`);
+  } catch (error) {
+    return fail(describeBackendError(error, "That role could not be changed."));
   }
-
-  await mutateUsers((all) => ({
-    users: all.map((user) => (user.id === userId ? { ...user, roles } : user)),
-    result: null,
-  }));
-
-  refreshEverything();
-  return ok(`Roles updated for ${target.name}.`);
 }
 
 export async function setUserActiveAction(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const auth = await authorize("users:manage", text(formData, "pin"));
+  const auth = await authorize("users:manage");
   if (!auth.ok) return fail(auth.error);
 
   const userId = text(formData, "user_id");
   const active = text(formData, "active") === "true";
-  const users = await listUsers();
-  const target = users.find((user) => user.id === userId);
-  if (!target) return fail("That account no longer exists.");
 
+  // Locking yourself out is a local concern the backend cannot judge: it only sees
+  // a valid admin token asking to disable an account, which is a legitimate request.
   const session = await getCurrentUser();
   if (session?.id === userId && !active) {
     return fail("You cannot deactivate your own account.");
   }
 
-  const admins = users.filter((user) => user.active && user.roles.includes("admin"));
-  if (!active && target.roles.includes("admin") && admins.length === 1) {
-    return fail("This is the only admin account. Promote someone else first.");
+  try {
+    const updated = await updateUser(userId, { active });
+    refreshEverything();
+    return ok(`${updated.fullName} was ${active ? "restored" : "deactivated"}.`);
+  } catch (error) {
+    return fail(describeBackendError(error, "That account could not be changed."));
   }
-
-  await mutateUsers((all) => ({
-    users: all.map((user) => (user.id === userId ? { ...user, active } : user)),
-    result: null,
-  }));
-
-  refreshEverything();
-  return ok(`${target.name} was ${active ? "restored" : "deactivated"}.`);
 }
-
-export async function resetUserPinAction(
-  _previous: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  const auth = await authorize("users:manage", text(formData, "pin"));
-  if (!auth.ok) return fail(auth.error);
-
-  const userId = text(formData, "user_id");
-  const newPin = text(formData, "new_pin");
-  if (!/^\d{6}$/.test(newPin)) return fail("A PIN must be exactly six digits.");
-
-  const users = await listUsers();
-  const target = users.find((user) => user.id === userId);
-  if (!target) return fail("That account no longer exists.");
-
-  const pinHash = await hashSecret(newPin);
-  await mutateUsers((all) => ({
-    users: all.map((user) => (user.id === userId ? { ...user, pinHash } : user)),
-    result: null,
-  }));
-
-  refreshEverything();
-  return ok(`${target.name} has a new PIN. Tell them in person, not by email.`);
-}
-
 /** Used by the UI to decide whether to render an edit affordance at all. */
 export async function currentUserCan(capability: Parameters<typeof can>[1]) {
   const user = await getCurrentUser();

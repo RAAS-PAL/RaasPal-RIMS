@@ -23,16 +23,19 @@ export function SignInForm() {
         </div>
       ) : null}
 
-      <Field label="Username" htmlFor="username" required>
+      {/* Identity is the RAASPAL platform's, and it keys on email — the same account
+          used for the operations console. */}
+      <Field label="Email" htmlFor="email" required>
         <TextInput
-          id="username"
-          name="username"
-          autoComplete="username"
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
           autoCapitalize="none"
           spellCheck={false}
           required
           autoFocus
-          placeholder="your work username"
+          placeholder="you@raaspal.com"
         />
       </Field>
 

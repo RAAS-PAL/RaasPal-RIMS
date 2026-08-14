@@ -1,17 +1,13 @@
 import {
   AlertTriangle,
-  ArrowRight,
   Boxes,
-  CircleDollarSign,
   FlaskConical,
-  History,
   PackageCheck,
+  PackagePlus,
   Warehouse,
 } from "lucide-react";
 import Link from "next/link";
 
-import { ActivityList } from "@/components/activity/activity-list";
-import { CategoryGlyph } from "@/components/robot/robot-image";
 import { DemoChip, StockBadge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import {
@@ -25,49 +21,55 @@ import {
 } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatTile } from "@/components/ui/stat";
-import { StockMeter } from "@/components/ui/stock-meter";
-import {
-  categoryRollups,
-  fleetTotals,
-  oversoldRobots,
-  restockQueue,
-} from "@/lib/analytics";
 import { requireUser } from "@/lib/auth";
-import { readClock } from "@/lib/clock";
-import { CATEGORY_META } from "@/lib/catalog";
-import { baht, bahtCompactly, num } from "@/lib/format";
-import { listActivity, listRobots } from "@/lib/store";
-import { summarizeStock } from "@/lib/types";
+import { num } from "@/lib/format";
+import { can } from "@/lib/rbac";
+import { getInventorySummary, listRobotStock } from "@/lib/stock-data";
 
+/**
+ * Everything here comes from the database. Nothing is derived from seed data.
+ *
+ * <p>Several tiles the mock version carried are gone, because nothing behind them
+ * is real yet: stock value for robots (no price is recorded), units reserved on
+ * signed orders (no such concept), and the "recent changes" audit feed (robot stock
+ * keeps no activity log — parts do, through stock_movements, but that is a different
+ * panel). A tile showing an invented number is worse than no tile: someone acts on it.
+ */
 export default async function DashboardPage() {
   const user = await requireUser();
-  const [robots, activity] = await Promise.all([listRobots(), listActivity(200)]);
-  const now = await readClock();
 
-  const totals = fleetTotals(robots, activity, now);
-  const rollups = categoryRollups(robots);
-  const queue = restockQueue(robots);
-  const oversold = oversoldRobots(robots);
-  const firstName = user.name.split(" ")[0];
+  // Fetched together — neither depends on the other, and the dashboard should not
+  // wait for two sequential round trips.
+  const [robots, summary] = await Promise.all([listRobotStock(), getInventorySummary()]);
+
+  const firstName = user.name.split(" ")[0] || user.name;
+  const onHand = robots.reduce((sum, robot) => sum + robot.quantity, 0);
+  const canWrite = can(user, "stock:write");
+
+  // Sorted by what is scarcest. Zero-quantity rows come first: a robot recorded as
+  // held but counted at none is the thing most worth looking at.
+  const scarcest = [...robots].sort((a, b) => a.quantity - b.quantity).slice(0, 8);
 
   return (
     <>
       <PageHeader
         eyebrow="Overview"
         title={`Good to see you, ${firstName}`}
-        description="Where the fleet stands right now: what is on the shelf, what needs ordering and what changed since you were last here."
+        description="What the warehouse holds right now, and which parts need ordering."
       >
         <ButtonLink href="/inventory" variant="secondary">
           <Warehouse size={15} aria-hidden />
           Open inventory
         </ButtonLink>
-        <ButtonLink href="/robots" variant="primary">
-          <Boxes size={15} aria-hidden />
-          Robot catalogue
-        </ButtonLink>
+        {canWrite ? (
+          <ButtonLink href="/robots/add" variant="primary">
+            <PackagePlus size={15} aria-hidden />
+            Add a robot
+          </ButtonLink>
+        ) : null}
       </PageHeader>
 
-      {oversold.length > 0 ? (
+      {summary.lowStockCount > 0 ? (
         <div
           role="status"
           className="mb-5 flex flex-wrap items-center gap-3 rounded-lg border border-[var(--crit-dot)]/40 bg-crit-wash px-4 py-3"
@@ -75,271 +77,197 @@ export default async function DashboardPage() {
           <AlertTriangle size={17} aria-hidden className="shrink-0 text-crit-ink" />
           <p className="min-w-0 flex-1 text-[0.8125rem] text-crit-ink">
             <span className="font-semibold">
-              {oversold.length} {oversold.length === 1 ? "robot is" : "robots are"} oversold.
+              {summary.lowStockCount} {summary.lowStockCount === 1 ? "part is" : "parts are"} at
+              or below the reorder point.
             </span>{" "}
-            More units are promised to signed orders than are sitting on the shelf:{" "}
-            {oversold.map((robot) => robot.name).join(", ")}.
+            Order more before they run out.
           </p>
-          <ButtonLink href="/inventory?view=attention" variant="secondary" size="sm">
-            Resolve
+          <ButtonLink href="/inventory?lowStock=true" variant="secondary" size="sm">
+            Review
           </ButtonLink>
         </div>
       ) : null}
 
-      <section aria-label="Fleet summary" className="mb-6">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
+      <section aria-label="Warehouse summary" className="mb-6">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
           <StatTile
-            label="Robots in catalogue"
-            value={num(totals.skus)}
-            unit="models"
-            hint={`${rollups.length} categories`}
-            icon={<Boxes size={16} aria-hidden />}
-            href="/robots"
-          />
-          <StatTile
-            label="Units on hand"
-            value={num(totals.onHand)}
+            label="Robots on hand"
+            value={num(onHand)}
             unit="units"
-            delta={{
-              value: totals.netUnits7d,
-              period: "last 7 days",
-              goodDirection: "up",
-            }}
-            icon={<PackageCheck size={16} aria-hidden />}
-            href="/inventory"
+            hint="Stock and demo together"
+            icon={<PackageCheck size={15} aria-hidden />}
           />
           <StatTile
-            label="Available to sell"
-            value={num(totals.available)}
+            label="Available"
+            value={num(summary.robotsInStock)}
             unit="units"
-            hint={`${num(totals.reserved)} reserved on signed orders`}
-            tone="brand"
-            icon={<Warehouse size={16} aria-hidden />}
+            hint="Ready to deploy or sell"
+            tone={summary.robotsInStock > 0 ? "ok" : "neutral"}
+            icon={<Warehouse size={15} aria-hidden />}
           />
           <StatTile
-            label="Demo units deployed"
-            value={num(totals.demo)}
+            label="Demo"
+            value={num(summary.robotsOnDemo)}
             unit="units"
-            delta={{
-              value: totals.netDemo7d,
-              period: "last 7 days",
-              goodDirection: "up",
-            }}
-            tone="demo"
-            icon={<FlaskConical size={16} aria-hidden />}
-          />
-          <StatTile
-            label="Stock value"
-            value={bahtCompactly(totals.stockValue)}
-            hint="On-hand units at buy-off price"
-            icon={<CircleDollarSign size={16} aria-hidden />}
+            // Not summed into "available" anywhere: a demo unit is on the premises
+            // but promised to a trial, and counting it as sellable is how one gets
+            // offered to two customers.
+            hint="Out on trial — not sellable"
+            icon={<FlaskConical size={15} aria-hidden />}
           />
         </div>
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-        <div className="space-y-5">
-          <Panel>
-            <PanelHeader>
-              <PanelTitle
-                eyebrow="Triage"
-                hint="Out of stock first, then whatever is furthest below its reorder point."
-                icon={<AlertTriangle size={16} aria-hidden />}
-              >
-                Needs restocking
-              </PanelTitle>
-              <div className="flex items-center gap-1.5">
-                <StockBadge state="out-of-stock" count={totals.outOfStock} />
-                <StockBadge state="low-stock" count={totals.lowStock} />
-              </div>
-            </PanelHeader>
-
-            {queue.length === 0 ? (
-              <EmptyState
-                icon={<PackageCheck size={26} aria-hidden />}
-                title="Every robot is above its reorder point"
-                action={
-                  <ButtonLink href="/inventory" variant="secondary" size="sm">
-                    Review stock anyway
-                  </ButtonLink>
-                }
-              >
-                Nothing needs ordering today. New shortfalls will appear here as soon
-                as counts drop.
-              </EmptyState>
-            ) : (
-              <>
-                <PanelFlush>
-                  <table className="w-full text-left text-[0.8125rem]">
-                    <thead>
-                      <tr className="border-b border-line text-[0.6875rem] uppercase tracking-[0.08em] text-faint">
-                        <th scope="col" className="px-4 py-2 font-medium sm:px-5">
-                          Robot
-                        </th>
-                        <th scope="col" className="px-3 py-2 font-medium">
-                          Stock position
-                        </th>
-                        <th scope="col" className="px-3 py-2 text-right font-medium">
-                          Short by
-                        </th>
-                        <th scope="col" className="px-4 py-2 text-right font-medium sm:px-5">
-                          Buy-off
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--line)]">
-                      {queue.slice(0, 8).map((robot) => {
-                        const stock = summarizeStock(robot);
-                        const shortBy = Math.max(0, robot.reorderPoint - stock.onHand);
-                        return (
-                          <tr key={robot.slug} className="hover:bg-subtle">
-                            <td className="px-4 py-3 sm:px-5">
-                              <Link
-                                href={`/robots/${robot.slug}`}
-                                className="font-medium underline-offset-2 hover:underline"
-                              >
-                                {robot.name}
-                              </Link>
-                              <p className="mt-0.5 text-[0.6875rem] text-muted">
-                                {CATEGORY_META[robot.category].label} · {robot.modelId}
-                              </p>
-                            </td>
-                            <td className="min-w-40 px-3 py-3">
-                              <StockMeter robot={robot} density="compact" />
-                              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                                <StockBadge state={stock.state} count={stock.onHand} />
-                                <DemoChip count={stock.demo} />
-                              </div>
-                            </td>
-                            <td className="px-3 py-3 text-right font-mono font-semibold tabular-nums text-crit-ink">
-                              {shortBy > 0 ? num(shortBy) : "—"}
-                            </td>
-                            <td className="px-4 py-3 text-right font-mono tabular-nums sm:px-5">
-                              {baht(robot.buyOff)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </PanelFlush>
-                {queue.length > 8 ? (
-                  <PanelFooter>
-                    <p className="text-[0.75rem] text-muted">
-                      Showing 8 of {num(queue.length)} robots below their reorder point.
-                    </p>
-                    <ButtonLink href="/inventory?view=attention" variant="secondary" size="sm">
-                      See all
-                      <ArrowRight size={14} aria-hidden />
-                    </ButtonLink>
-                  </PanelFooter>
-                ) : null}
-              </>
-            )}
-          </Panel>
-
-          <Panel>
-            <PanelHeader>
-              <PanelTitle
-                eyebrow="Coverage"
-                hint="Sellable, reserved and demo units held in each class of robot."
-                icon={<Boxes size={16} aria-hidden />}
-              >
-                Fleet by category
-              </PanelTitle>
-            </PanelHeader>
-            <PanelBody className="grid gap-3 sm:grid-cols-2">
-              {rollups.map((rollup) => {
-                const meta = CATEGORY_META[rollup.id];
-                /* One synthetic robot stands in for the category so the same
-                   meter reads at both levels of the hierarchy. */
-                const asRobot = {
-                  reorderPoint: rollup.skus * 3,
-                  reserved: rollup.reserved,
-                  locations: [
-                    { code: "all", onHand: rollup.onHand, demo: rollup.demo },
-                  ],
-                } as Parameters<typeof StockMeter>[0]["robot"];
-
-                return (
-                  <Link
-                    key={rollup.id}
-                    href={`/robots?category=${rollup.id}`}
-                    className="group rounded-lg border border-line p-3.5 transition-colors duration-150 hover:border-line-strong hover:bg-subtle"
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-line bg-inset text-muted">
-                        <CategoryGlyph category={rollup.id} className="size-5" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <p className="truncate text-[0.875rem] font-semibold">
-                            {meta.label}
-                          </p>
-                          <p className="shrink-0 font-mono text-[0.6875rem] text-muted">
-                            {num(rollup.skus)} {rollup.skus === 1 ? "model" : "models"}
-                          </p>
-                        </div>
-                        <p className="mt-0.5 line-clamp-1 text-[0.75rem] text-muted">
-                          {meta.blurb}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-3">
-                      <StockMeter robot={asRobot} density="compact" />
-                    </div>
-
-                    <div className="mt-2.5 flex items-center justify-between gap-2 text-[0.75rem]">
-                      <span className="text-muted">
-                        <span className="font-mono font-semibold tabular-nums text-fg">
-                          {num(rollup.onHand)}
-                        </span>{" "}
-                        on hand
-                      </span>
-                      {rollup.needsAttention > 0 ? (
-                        <span className="font-medium text-warn-ink">
-                          {num(rollup.needsAttention)} need attention
-                        </span>
-                      ) : (
-                        <span className="font-medium text-ok-ink">All stocked</span>
-                      )}
-                    </div>
-                  </Link>
-                );
-              })}
-            </PanelBody>
-          </Panel>
-        </div>
-
-        <Panel className="xl:sticky xl:top-20 xl:self-start">
+      <div className="grid gap-5 xl:grid-cols-2">
+        {/* ── Parts needing a reorder ─────────────────────────────────────── */}
+        <Panel>
           <PanelHeader>
             <PanelTitle
-              eyebrow="Audit"
-              hint="Every entry names the person who confirmed it with their PIN."
-              icon={<History size={16} aria-hidden />}
+              eyebrow="Alert"
+              hint="At or below the reorder point set for each part."
+              icon={<AlertTriangle size={16} aria-hidden />}
             >
-              Recent changes
+              Needs restocking
             </PanelTitle>
           </PanelHeader>
-          {activity.length === 0 ? (
-            <EmptyState title="Nothing has changed yet">
-              Stock moves, price changes and specification edits will show up here.
-            </EmptyState>
+
+          {summary.lowStockItems.length === 0 ? (
+            <PanelBody>
+              <EmptyState
+                icon={<PackageCheck size={26} aria-hidden />}
+                title={
+                  summary.totalItems === 0
+                    ? "No parts recorded yet"
+                    : "Every part is above its reorder point"
+                }
+              >
+                {summary.totalItems === 0
+                  ? "Add spare parts and consumables from the inventory page, and anything running low will appear here."
+                  : "Nothing needs ordering right now."}
+              </EmptyState>
+            </PanelBody>
           ) : (
             <>
-              <PanelFlush className="max-h-[38rem] overflow-y-auto">
-                <ActivityList entries={activity.slice(0, 14)} now={now} />
+              <PanelFlush>
+                <table className="w-full text-left text-[0.8125rem]">
+                  <thead>
+                    <tr className="border-b border-line text-[0.6875rem] uppercase tracking-[0.08em] text-faint">
+                      <th scope="col" className="px-4 py-2.5 font-medium sm:px-5">Part</th>
+                      <th scope="col" className="px-3 py-2.5 font-medium">On hand</th>
+                      <th scope="col" className="px-3 py-2.5 text-right font-medium">Reorder at</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--line)]">
+                    {summary.lowStockItems.map((item) => (
+                      <tr key={item.id} className="align-top hover:bg-subtle">
+                        <th scope="row" className="px-4 py-3 font-normal sm:px-5">
+                          <p className="font-semibold">{item.name}</p>
+                          <p className="mt-0.5 font-mono text-[0.6875rem] text-muted">
+                            {item.sku}
+                            {item.robotModel ? ` · ${item.robotModel}` : ""}
+                          </p>
+                        </th>
+                        <td className="px-3 py-3">
+                          <span className="font-mono font-semibold">
+                            {num(item.quantityOnHand)}
+                          </span>
+                          <span className="ml-1 text-[0.6875rem] text-muted">
+                            {item.unitOfMeasure}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-right font-mono text-muted">
+                          {num(item.reorderPoint)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </PanelFlush>
               <PanelFooter>
-                <p className="text-[0.75rem] text-muted">
-                  Last 14 of {num(activity.length)} entries
-                </p>
-                <ButtonLink href="/activity" variant="secondary" size="sm">
-                  Full log
-                  <ArrowRight size={14} aria-hidden />
-                </ButtonLink>
+                <Link href="/inventory?lowStock=true" className="text-[0.8125rem] font-medium">
+                  See every part below its reorder point →
+                </Link>
               </PanelFooter>
+            </>
+          )}
+        </Panel>
+
+        {/* ── Robots held ─────────────────────────────────────────────────── */}
+        <Panel>
+          <PanelHeader>
+            <PanelTitle
+              eyebrow="Warehouse"
+              hint="Fewest first."
+              icon={<Boxes size={16} aria-hidden />}
+            >
+              Robots held
+            </PanelTitle>
+          </PanelHeader>
+
+          {robots.length === 0 ? (
+            <PanelBody>
+              <EmptyState
+                icon={<PackagePlus size={26} aria-hidden />}
+                title="No robots recorded yet"
+                action={
+                  canWrite ? (
+                    <ButtonLink href="/robots/add" variant="secondary" size="sm">
+                      Add the first one
+                    </ButtonLink>
+                  ) : undefined
+                }
+              >
+                Once the warehouse records what it holds, the counts appear here.
+              </EmptyState>
+            </PanelBody>
+          ) : (
+            <>
+              <PanelFlush>
+                <table className="w-full text-left text-[0.8125rem]">
+                  <thead>
+                    <tr className="border-b border-line text-[0.6875rem] uppercase tracking-[0.08em] text-faint">
+                      <th scope="col" className="px-4 py-2.5 font-medium sm:px-5">Robot</th>
+                      <th scope="col" className="px-3 py-2.5 font-medium">Status</th>
+                      <th scope="col" className="px-3 py-2.5 text-right font-medium">Quantity</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--line)]">
+                    {scarcest.map((robot) => (
+                      <tr key={robot.id} className="align-top hover:bg-subtle">
+                        <th scope="row" className="px-4 py-3 font-normal sm:px-5">
+                          <p className="font-semibold">{robot.displayName}</p>
+                          <p className="mt-0.5 text-[0.6875rem] text-muted">
+                            {robot.robotType.charAt(0) + robot.robotType.slice(1).toLowerCase()}
+                            {robot.location ? ` · ${robot.location}` : ""}
+                          </p>
+                        </th>
+                        <td className="px-3 py-3">
+                          {/* Zero first: DemoChip renders nothing at a count of 0, which
+                              would leave the cell blank and read as missing data rather
+                              than as "none held". */}
+                          {robot.quantity === 0 ? (
+                            <StockBadge state="out-of-stock" />
+                          ) : robot.status === "DEMO" ? (
+                            <DemoChip count={robot.quantity} />
+                          ) : (
+                            <StockBadge state="in-stock" count={robot.quantity} />
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-right font-mono font-semibold">
+                          {num(robot.quantity)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </PanelFlush>
+              {robots.length > scarcest.length ? (
+                <PanelFooter>
+                  <Link href="/robots" className="text-[0.8125rem] font-medium">
+                    See all {num(robots.length)} entries →
+                  </Link>
+                </PanelFooter>
+              ) : null}
             </>
           )}
         </Panel>

@@ -6,6 +6,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { EmptyState, Panel } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
 import { listUsers, requireUser } from "@/lib/auth";
+import { rolesForBackendRole } from "@/lib/backend-types";
 import { readClock } from "@/lib/clock";
 import { ROLE_DESCRIPTION, ROLE_LABEL, can } from "@/lib/rbac";
 import { ROLES } from "@/lib/types";
@@ -41,18 +42,23 @@ export default async function AccountsPage() {
     );
   }
 
+  // Accounts come from the Java service now, so the shapes differ from the JSON
+  // records this page was written against: one role instead of several, no username,
+  // no home warehouse, and no last-sign-in timestamp (the backend does not record one).
   const records = await listUsers();
   const accounts: AccountRow[] = records
     .map((record) => ({
       id: record.id,
-      username: record.username,
-      name: record.name,
+      // Derived from the email local part — the backend has no username, and the
+      // accounts this replaced followed exactly this pattern.
+      username: record.email.split("@")[0] ?? record.email,
+      name: record.fullName,
       email: record.email,
-      roles: record.roles,
-      warehouse: record.warehouse,
+      roles: rolesForBackendRole(record.role),
+      warehouse: "",
       active: record.active,
       createdAt: record.createdAt,
-      lastSignInAt: record.lastSignInAt,
+      lastSignInAt: null,
     }))
     .sort(
       (a, b) =>

@@ -175,8 +175,12 @@
   --color-demo-ink: var(--demo-ink);
   --color-demo-dot: var(--demo-dot);
 
-  --font-display: var(--font-chakra), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  /* Inter for display and body; Noto Sans Thai behind it because Inter has no
+     Thai glyphs and site/customer names from the backend are often Thai.
+     Mono stays IBM Plex — Inter has no monospace cut, and quantities, prices,
+     SKUs and timestamps need figures that line up down a column. */
+  --font-display: var(--font-inter), var(--font-noto-thai), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), var(--font-noto-thai), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", monospace;
 
   --radius-xs: 0.25rem;
@@ -200,7 +204,7 @@
   body {
     background: var(--bg-app);
     color: var(--fg);
-    font-family: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-sans);
     font-size: 0.875rem;
     line-height: 1.55;
     font-feature-settings: "cv05" 1;
@@ -215,7 +219,7 @@
   h1,
   h2,
   h3 {
-    font-family: var(--font-chakra), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-display);
     letter-spacing: -0.01em;
     color: var(--fg);
   }

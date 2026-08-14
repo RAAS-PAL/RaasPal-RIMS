@@ -1,7 +1,6 @@
 import { KeyRound, ShieldCheck, Warehouse } from "lucide-react";
 import type { Metadata } from "next";
 
-import { ChangePinForm } from "@/components/accounts/change-pin-form";
 import { RoleBadges } from "@/components/ui/badge";
 import { Panel, PanelBody, PanelHeader, PanelTitle } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
@@ -132,17 +131,21 @@ export default async function AccountPage() {
           <PanelHeader>
             <PanelTitle
               eyebrow="Security"
-              hint="You type this every time you save a change."
+              hint="Managed by the RAASPAL platform."
               icon={<KeyRound size={16} aria-hidden />}
             >
-              Confirmation PIN
+              Sign-in
             </PanelTitle>
           </PanelHeader>
           <PanelBody>
-            <ChangePinForm />
+            <p className="text-[0.8rem] leading-relaxed text-muted">
+              Your account is the same one you use across the RAASPAL platform, and your
+              password is held there — this system never sees it. Every change you save
+              is checked against your role on the server.
+            </p>
             <p className="mt-5 border-t border-line pt-4 text-[0.75rem] leading-relaxed text-muted">
-              Forgotten it? An admin can set a new one from Accounts. Nobody, including
-              admins, can read your existing PIN — only replace it.
+              To change your password or if you are locked out, ask a RAASPAL
+              administrator.
             </p>
           </PanelBody>
         </Panel>

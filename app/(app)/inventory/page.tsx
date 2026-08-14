@@ -1,158 +1,116 @@
-import { AlertTriangle, FlaskConical, PackageCheck, Warehouse } from "lucide-react";
+import { AlertTriangle, Boxes, PackageCheck, PackagePlus } from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { InventoryFilters } from "@/components/inventory/inventory-filters";
-import { InventoryTable } from "@/components/inventory/inventory-table";
-import { Panel, PanelFlush } from "@/components/ui/panel";
+import { AddPartForm } from "@/components/inventory/add-part-form";
+import { PartsFilters } from "@/components/inventory/parts-filters";
+import { PartsTable } from "@/components/inventory/parts-table";
+import { EmptyState, Panel, PanelFlush } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatTile } from "@/components/ui/stat";
 import { requireUser } from "@/lib/auth";
-import { readClock } from "@/lib/clock";
-import { CATEGORIES, summarizeStock, type CategoryId, type Robot } from "@/lib/types";
-import { bahtCompactly, num } from "@/lib/format";
+import { num } from "@/lib/format";
 import { can } from "@/lib/rbac";
-import { warehouseName } from "@/lib/catalog";
-import { listRobots } from "@/lib/store";
+import {
+  getInventorySummary,
+  listInventoryCategories,
+  listInventoryItems,
+} from "@/lib/stock-data";
 
 export const metadata: Metadata = { title: "Inventory" };
 
 const one = (value: string | string[] | undefined) =>
   (Array.isArray(value) ? value[0] : value) ?? "";
 
+/**
+ * Spare parts and consumables — the real `inventory_items` table.
+ *
+ * <p>This page used to render the seed catalogue: robots dressed as inventory, with
+ * per-site stock, reservations and buy-off prices that exist nowhere in the database.
+ * All of it is gone. Robots are counted on `/robots` from their own table; this page
+ * is parts, which is what the backend's inventory endpoints actually serve.
+ *
+ * <p>Filtering happens in the query rather than here, so what the table shows and what
+ * the count under the filters claims come from the same place.
+ */
 export default async function InventoryPage(props: PageProps<"/inventory">) {
   const user = await requireUser();
   const params = await props.searchParams;
-  const robots = await listRobots();
-  const now = await readClock();
 
-  const site = one(params.site);
-  const view = one(params.view);
-  const query = one(params.q).trim().toLowerCase();
-  const rawCategory = one(params.category);
-  const category = (CATEGORIES as readonly string[]).includes(rawCategory)
-    ? (rawCategory as CategoryId)
-    : "";
+  const query = one(params.q).trim();
+  const category = one(params.category);
+  // The dashboard links `?lowStock=true`; the header bell links `?view=attention`.
+  // Both mean the same thing to an operator, so both are honoured.
+  const lowStock = one(params.lowStock) === "true" || one(params.view) === "attention";
 
-  let results: Robot[] = robots;
-  if (category) results = results.filter((robot) => robot.category === category);
-  if (query) {
-    results = results.filter(
-      (robot) =>
-        robot.name.toLowerCase().includes(query) ||
-        robot.modelId.toLowerCase().includes(query),
-    );
-  }
-  if (site) {
-    /* Showing a single site means showing what that site actually touches. */
-    results = results.filter((robot) =>
-      robot.locations.some(
-        (location) =>
-          location.code === site && (location.onHand > 0 || location.demo > 0),
-      ),
-    );
-  }
-  if (view) {
-    results = results.filter((robot) => {
-      const stock = summarizeStock(robot);
-      if (view === "attention") return stock.state !== "in-stock";
-      if (view === "demo") return stock.demo > 0;
-      if (view === "reserved") return stock.reserved > 0;
-      return true;
-    });
-  }
+  const [items, categories, summary] = await Promise.all([
+    listInventoryItems({ q: query || undefined, category: category || undefined, lowStock }),
+    listInventoryCategories(),
+    getInventorySummary(),
+  ]);
 
-  results = [...results].sort((a, b) => {
-    const stockA = summarizeStock(a);
-    const stockB = summarizeStock(b);
-    const rank = { "out-of-stock": 0, "low-stock": 1, "in-stock": 2 } as const;
-    return rank[stockA.state] - rank[stockB.state] || a.name.localeCompare(b.name);
-  });
-
-  /* Totals follow the site filter so the tiles and the table agree. */
-  const scope = site
-    ? robots.map((robot) => {
-        const held = robot.locations.find((location) => location.code === site);
-        return {
-          robot,
-          onHand: held?.onHand ?? 0,
-          demo: held?.demo ?? 0,
-        };
-      })
-    : robots.map((robot) => {
-        const stock = summarizeStock(robot);
-        return { robot, onHand: stock.onHand, demo: stock.demo };
-      });
-
-  const onHand = scope.reduce((sum, entry) => sum + entry.onHand, 0);
-  const demo = scope.reduce((sum, entry) => sum + entry.demo, 0);
-  const value = scope.reduce(
-    (sum, entry) => sum + entry.onHand * entry.robot.buyOff,
-    0,
-  );
-  const attention = robots.filter(
-    (robot) => summarizeStock(robot).state !== "in-stock",
-  ).length;
+  const canEdit = can(user, "stock:write");
+  const filtering = Boolean(query || category || lowStock);
+  const onHand = items.reduce((sum, item) => sum + item.quantityOnHand, 0);
 
   return (
     <>
       <PageHeader
         eyebrow="Operations"
-        title={site ? warehouseName(site) : "Inventory"}
-        description={
-          site
-            ? `Units held at ${site}. Reserved and available figures are fleet-wide and shown as a dash here.`
-            : "Every model with its live count. Adjustments are confirmed with your PIN and written to the activity log."
-        }
+        title="Inventory"
+        description="Spare parts and consumables the warehouse stocks. Counts change by recording a movement, never by overwriting a total."
         trail={[{ label: "Dashboard", href: "/" }, { label: "Inventory" }]}
-      />
+      >
+        {canEdit ? <AddPartForm categories={categories} /> : null}
+      </PageHeader>
 
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-3">
         <StatTile
-          label={site ? "Units at this site" : "Units on hand"}
+          label="Parts tracked"
+          value={num(summary.totalItems)}
+          unit={summary.totalItems === 1 ? "part" : "parts"}
+          icon={<Boxes size={16} aria-hidden />}
+        />
+        <StatTile
+          label={filtering ? "Units shown" : "Units on hand"}
           value={num(onHand)}
           unit="units"
           icon={<PackageCheck size={16} aria-hidden />}
         />
         <StatTile
-          label="Demo units out"
-          value={num(demo)}
-          unit="units"
-          tone="demo"
-          icon={<FlaskConical size={16} aria-hidden />}
-        />
-        <StatTile
-          label="Stock value"
-          value={bahtCompactly(value)}
-          hint="At buy-off price"
-          icon={<Warehouse size={16} aria-hidden />}
-        />
-        <StatTile
-          label="Below reorder point"
-          value={num(attention)}
-          unit="models"
-          tone={attention > 0 ? "warn" : "ok"}
-          hint="Fleet-wide, regardless of site filter"
+          label="Needs restocking"
+          value={num(summary.lowStockCount)}
+          unit={summary.lowStockCount === 1 ? "part" : "parts"}
+          tone={summary.lowStockCount > 0 ? "warn" : "ok"}
+          hint="At or below the reorder point"
           icon={<AlertTriangle size={16} aria-hidden />}
-          href="/inventory?view=attention"
+          href="/inventory?lowStock=true"
         />
       </div>
 
       <Suspense
         fallback={<div className="mb-5 h-[6.5rem] rounded-lg border border-line bg-surface" />}
       >
-        <InventoryFilters resultCount={results.length} />
+        <PartsFilters categories={categories} resultCount={items.length} />
       </Suspense>
 
       <Panel>
-        <PanelFlush>
-          <InventoryTable
-            robots={results}
-            canEdit={can(user, "stock:write")}
-            site={site}
-            now={now}
-          />
-        </PanelFlush>
+        {items.length === 0 ? (
+          <EmptyState
+            icon={<PackagePlus size={26} aria-hidden />}
+            title={filtering ? "Nothing matches those filters" : "No parts recorded yet"}
+          >
+            {filtering
+              ? "Clear the filters to see every part."
+              : canEdit
+                ? "Add the spare parts and consumables the warehouse keeps, and their counts appear here."
+                : "Nothing has been recorded yet. Warehouse staff add parts as they arrive."}
+          </EmptyState>
+        ) : (
+          <PanelFlush>
+            <PartsTable items={items} canEdit={canEdit} />
+          </PanelFlush>
+        )}
       </Panel>
     </>
   );

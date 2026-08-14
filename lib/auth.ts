@@ -1,217 +1,53 @@
 import "server-only";
 
-import { promises as fs } from "node:fs";
-import crypto from "node:crypto";
-import path from "node:path";
-
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { BackendError, SESSION_COOKIE, callBackend } from "./backend";
+import {
+  rolesForBackendRole,
+  type BackendRole,
+  type BackendUser,
+  type CreateUserRequest,
+  type LoginResponse,
+  type Paged,
+} from "./backend-types";
 import { CAPABILITY_DENIAL, can, type Capability } from "./rbac";
-import type { Role, SessionUser, UserRecord } from "./types";
+import type { SessionUser } from "./types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const USERS_FILE = path.join(DATA_DIR, "users.json");
-const SESSION_COOKIE = "rims_session";
-const SESSION_MAX_AGE = 60 * 60 * 12; // one working day
+/**
+ * Identity comes from the Java backend. RIMS stores no passwords.
+ *
+ * <p>This replaces a self-contained system that hashed passwords with scrypt into
+ * `data/users.json` and guarded every write with a six-digit PIN. That worked while
+ * RIMS was standalone, but it meant two user databases for one set of people: an
+ * account here could change stock while the backend had never heard of them, so
+ * `stock_movements.created_by` recorded nothing usable.
+ *
+ * <p><strong>The PIN is gone.</strong> It was a second factor over a JSON file with
+ * no other access control. Writes are now guarded by a signed JWT plus a server-side
+ * role check on every endpoint — a stronger boundary than the PIN was, and one the
+ * browser cannot talk its way around. If a confirmation step is wanted back for
+ * destructive actions, it should be a re-authentication against the backend rather
+ * than a secret RIMS keeps by itself.
+ */
 
-/* ---------------------------------------------------------------------------
-   Hashing
---------------------------------------------------------------------------- */
-
-function scrypt(secret: string, salt: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    crypto.scrypt(secret.normalize("NFKC"), salt, 32, (error, key) =>
-      error ? reject(error) : resolve(key),
-    );
-  });
-}
-
-export async function hashSecret(secret: string): Promise<string> {
-  const salt = crypto.randomBytes(16).toString("hex");
-  const key = await scrypt(secret, salt);
-  return `${salt}:${key.toString("hex")}`;
-}
-
-async function verifySecret(secret: string, stored: string): Promise<boolean> {
-  const [salt, expected] = stored.split(":");
-  if (!salt || !expected) return false;
-  const key = await scrypt(secret, salt);
-  const expectedBuffer = Buffer.from(expected, "hex");
-  if (expectedBuffer.length !== key.length) return false;
-  return crypto.timingSafeEqual(key, expectedBuffer);
-}
+const SESSION_MAX_AGE = 60 * 60 * 12; // one working day, matching the JWT lifetime
 
 /* ---------------------------------------------------------------------------
-   Account store
+   Session
 --------------------------------------------------------------------------- */
 
 /**
- * Seed accounts, created the first time the app runs. The shared password and
- * the PINs are printed in the README — change them before this leaves your
- * network, and delete data/users.json to re-seed.
+ * The backend's JWT, in an httpOnly cookie.
+ *
+ * <p>httpOnly means client JavaScript cannot read it, so an XSS bug cannot exfiltrate
+ * a working staff token. Every backend call is made server-side, so the browser never
+ * needs it.
  */
-const SEED_ACCOUNTS: {
-  username: string;
-  name: string;
-  email: string;
-  roles: Role[];
-  warehouse: string;
-  password: string;
-  pin: string;
-}[] = [
-  {
-    username: "swanhtetag01",
-    name: "Swan Htet Aung",
-    email: "swan.h@raaspal.com",
-    roles: ["admin", "editor"],
-    warehouse: "BKK-WH01",
-    password: "Raas1234@Pal",
-    pin: "314159",
-  },
-  {
-    username: "nattapong",
-    name: "Nattapong Sriwichai",
-    email: "nattapong@raaspal.com",
-    roles: ["admin"],
-    warehouse: "BKK-WH01",
-    password: "Raaspal#2026",
-    pin: "730154",
-  },
-  {
-    username: "pimchanok",
-    name: "Pimchanok Ratanapon",
-    email: "pimchanok@raaspal.com",
-    roles: ["editor"],
-    warehouse: "CNX-WH02",
-    password: "Raaspal#2026",
-    pin: "265913",
-  },
-  {
-    username: "somchai",
-    name: "Somchai Thanakit",
-    email: "somchai@raaspal.com",
-    roles: ["viewer"],
-    warehouse: "PKT-WH03",
-    password: "Raaspal#2026",
-    pin: "118427",
-  },
-];
-
-let writeQueue: Promise<unknown> = Promise.resolve();
-
-function enqueue<T>(task: () => Promise<T>): Promise<T> {
-  const run = writeQueue.then(task, task);
-  writeQueue = run.catch(() => {});
-  return run;
-}
-
-async function seedUsers(): Promise<UserRecord[]> {
-  const createdAt = new Date().toISOString();
-  return Promise.all(
-    SEED_ACCOUNTS.map(async (account, index) => ({
-      id: `u-${(index + 1).toString().padStart(3, "0")}`,
-      username: account.username,
-      name: account.name,
-      email: account.email,
-      roles: account.roles,
-      warehouse: account.warehouse,
-      passwordHash: await hashSecret(account.password),
-      pinHash: await hashSecret(account.pin),
-      active: true,
-      createdAt,
-      lastSignInAt: null,
-    })),
-  );
-}
-
-async function loadUsers(): Promise<UserRecord[]> {
-  try {
-    const contents = await fs.readFile(USERS_FILE, "utf8");
-    const parsed = JSON.parse(contents) as UserRecord[];
-    if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("empty");
-    return parsed;
-  } catch {
-    const seeded = await seedUsers();
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(USERS_FILE, JSON.stringify(seeded, null, 2), "utf8");
-    return seeded;
-  }
-}
-
-async function saveUsers(users: UserRecord[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2), "utf8");
-}
-
-export async function listUsers(): Promise<UserRecord[]> {
-  return loadUsers();
-}
-
-export async function mutateUsers<T>(
-  mutate: (users: UserRecord[]) => { users: UserRecord[]; result: T },
-): Promise<T> {
-  return enqueue(async () => {
-    const users = await loadUsers();
-    const { users: next, result } = mutate(users);
-    await saveUsers(next);
-    return result;
-  });
-}
-
-export function toSessionUser(user: UserRecord): SessionUser {
-  return {
-    id: user.id,
-    username: user.username,
-    name: user.name,
-    email: user.email,
-    roles: user.roles,
-    warehouse: user.warehouse,
-  };
-}
-
-/* ---------------------------------------------------------------------------
-   Session cookie — an HMAC-signed "<userId>.<issuedAt>.<signature>".
---------------------------------------------------------------------------- */
-
-function sessionSecret(): string {
-  const secret = process.env.AUTH_SECRET;
-  if (secret && secret.length >= 16) return secret;
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "AUTH_SECRET must be set to at least 16 characters in production.",
-    );
-  }
-  return "rims-development-secret-do-not-ship";
-}
-
-function sign(payload: string): string {
-  return crypto
-    .createHmac("sha256", sessionSecret())
-    .update(payload)
-    .digest("base64url");
-}
-
-function issueToken(userId: string): string {
-  const payload = `${userId}.${Date.now()}`;
-  return `${payload}.${sign(payload)}`;
-}
-
-function readToken(token: string): { userId: string } | null {
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
-  const [userId, issuedAt, signature] = parts;
-  const expected = sign(`${userId}.${issuedAt}`);
-  const a = Buffer.from(signature);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
-  if (Date.now() - Number(issuedAt) > SESSION_MAX_AGE * 1000) return null;
-  return { userId };
-}
-
-export async function startSession(userId: string): Promise<void> {
+export async function startSession(token: string): Promise<void> {
   const store = await cookies();
-  store.set(SESSION_COOKIE, issueToken(userId), {
+  store.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -225,16 +61,31 @@ export async function endSession(): Promise<void> {
   store.delete(SESSION_COOKIE);
 }
 
+/**
+ * Who is signed in, according to the backend.
+ *
+ * <p>Asks `/auth/me` on every call rather than trusting claims decoded from the
+ * cookie. It costs a request, but it means a deactivated account or a changed role
+ * takes effect immediately instead of lingering until the token expires — which for
+ * a twelve-hour token is most of a working day.
+ */
 export async function getCurrentUser(): Promise<SessionUser | null> {
   const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-  const parsed = readToken(token);
-  if (!parsed) return null;
-  const users = await loadUsers();
-  const user = users.find((candidate) => candidate.id === parsed.userId);
-  if (!user || !user.active) return null;
-  return toSessionUser(user);
+  if (!store.get(SESSION_COOKIE)?.value) return null;
+
+  try {
+    const me = await callBackend<BackendUser>("/api/v1/auth/me");
+    return me ? toSessionUser(me) : null;
+  } catch (error) {
+    // 401/403 means the token is expired, revoked, or the account is disabled —
+    // all "not signed in". Anything else (backend down) must not silently read as
+    // signed-out, or an outage would look like a mass logout and users would be
+    // redirected into a login page that also cannot work.
+    if (error instanceof BackendError && (error.status === 401 || error.status === 403)) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 /** For pages: sends anyone without a live session to sign in. */
@@ -248,43 +99,74 @@ export async function requireUser(): Promise<SessionUser> {
    Credentials
 --------------------------------------------------------------------------- */
 
+/**
+ * Sign in against the backend.
+ *
+ * <p>The backend identifies people by email. RIMS used to ask for a username, so the
+ * sign-in field now takes an email address — the seed accounts already followed
+ * `somchai` / `somchai@raaspal.com`, so the change is small for anyone used to it.
+ */
 export async function signIn(
-  username: string,
+  email: string,
   password: string,
-): Promise<{ ok: true; user: UserRecord } | { ok: false; error: string }> {
-  const users = await loadUsers();
-  const user = users.find(
-    (candidate) => candidate.username.toLowerCase() === username.trim().toLowerCase(),
-  );
-  /* Always run a hash so a missing username costs the same as a wrong
-     password and cannot be detected by timing. */
-  const stored = user?.passwordHash ?? (await hashSecret("no-such-account"));
-  const matches = await verifySecret(password, stored);
-  if (!user || !matches) {
-    return { ok: false, error: "That username and password do not match." };
+): Promise<{ ok: true; user: SessionUser } | { ok: false; error: string }> {
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed || !password) {
+    return { ok: false, error: "Enter your email address and password." };
   }
-  if (!user.active) {
-    return { ok: false, error: "This account is deactivated. Ask an admin to restore it." };
+
+  try {
+    // token: null — there is no session yet, and sending a stale cookie from a
+    // previous account would be confusing rather than helpful.
+    const result = await callBackend<LoginResponse>("/api/v1/auth/login", {
+      method: "POST",
+      body: { email: trimmed, password },
+      token: null,
+    });
+
+    if (!result?.accessToken || !result.user) {
+      return { ok: false, error: "Sign-in failed. Try again." };
+    }
+
+    const user = toSessionUser(result.user);
+    if (user.roles.length === 0) {
+      // A CUSTOMER account authenticates fine against the backend but has no
+      // business in the inventory system. Refuse here rather than admitting them
+      // to an interface where every page is empty.
+      return {
+        ok: false,
+        error: "This account does not have access to the inventory system.",
+      };
+    }
+
+    await startSession(result.accessToken);
+    return { ok: true, user };
+  } catch (error) {
+    if (error instanceof BackendError) {
+      // 401 is a wrong email or password; the backend does not distinguish which,
+      // and neither should we.
+      return {
+        ok: false,
+        error:
+          error.status === 401
+            ? "That email and password do not match."
+            : error.message,
+      };
+    }
+    return { ok: false, error: "Could not reach the server. Try again." };
   }
-  await mutateUsers((all) => ({
-    users: all.map((candidate) =>
-      candidate.id === user.id
-        ? { ...candidate, lastSignInAt: new Date().toISOString() }
-        : candidate,
-    ),
-    result: null,
-  }));
-  return { ok: true, user };
 }
 
 /**
- * The authority check that guards every write. It confirms the session is
- * live, that the account still holds the capability, and that whoever is at
- * the keyboard knows the account's PIN.
+ * The authority check in front of every write.
+ *
+ * <p>No longer takes a PIN. It confirms a live session and that the account holds the
+ * capability — and note that this is a *convenience*, not the enforcement point: the
+ * backend re-checks the role on every endpoint. Passing this check and then being
+ * refused by the API is possible and correct; the reverse is not.
  */
 export async function authorize(
   capability: Capability,
-  pin: string,
 ): Promise<{ ok: true; user: SessionUser } | { ok: false; error: string }> {
   const session = await getCurrentUser();
   if (!session) {
@@ -293,41 +175,47 @@ export async function authorize(
   if (!can(session, capability)) {
     return { ok: false, error: CAPABILITY_DENIAL[capability] };
   }
-  const trimmed = pin.trim();
-  if (!trimmed) {
-    return { ok: false, error: "Enter your PIN to confirm this change." };
-  }
-  const users = await loadUsers();
-  const record = users.find((candidate) => candidate.id === session.id);
-  if (!record) {
-    return { ok: false, error: "Your account is no longer available." };
-  }
-  if (!(await verifySecret(trimmed, record.pinHash))) {
-    return { ok: false, error: "That PIN is not correct. Nothing was changed." };
-  }
   return { ok: true, user: session };
 }
 
-export async function changeOwnPin(
-  currentPin: string,
-  nextPin: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const session = await getCurrentUser();
-  if (!session) return { ok: false, error: "Your session has expired. Sign in again." };
-  if (!/^\d{6}$/.test(nextPin)) {
-    return { ok: false, error: "A PIN must be exactly six digits." };
-  }
-  const users = await loadUsers();
-  const record = users.find((candidate) => candidate.id === session.id);
-  if (!record || !(await verifySecret(currentPin, record.pinHash))) {
-    return { ok: false, error: "That PIN is not correct. Nothing was changed." };
-  }
-  const pinHash = await hashSecret(nextPin);
-  await mutateUsers((all) => ({
-    users: all.map((candidate) =>
-      candidate.id === session.id ? { ...candidate, pinHash } : candidate,
-    ),
-    result: null,
-  }));
-  return { ok: true };
+/* ---------------------------------------------------------------------------
+   Accounts
+--------------------------------------------------------------------------- */
+
+export async function listUsers(): Promise<BackendUser[]> {
+  const page = await callBackend<Paged<BackendUser>>("/api/v1/users?page=0&size=200");
+  return page?.content ?? [];
+}
+
+export async function createUser(request: CreateUserRequest): Promise<BackendUser> {
+  return callBackend<BackendUser>("/api/v1/users", { method: "POST", body: request });
+}
+
+/** Change a role, a name, or whether the account can sign in. */
+export async function updateUser(
+  id: string,
+  request: { fullName?: string; role?: BackendRole; active?: boolean },
+): Promise<BackendUser> {
+  return callBackend<BackendUser>(`/api/v1/users/${id}`, { method: "PATCH", body: request });
+}
+
+/* ---------------------------------------------------------------------------
+   Mapping
+--------------------------------------------------------------------------- */
+
+export function toSessionUser(user: BackendUser): SessionUser {
+  return {
+    id: user.id,
+    // The backend has no username. Deriving it from the email local part matches
+    // the accounts this replaced (somchai / somchai@raaspal.com) and keeps the
+    // interface reading the same.
+    username: user.email.split("@")[0] ?? user.email,
+    name: user.fullName,
+    email: user.email,
+    roles: rolesForBackendRole(user.role),
+    // Vestigial. RIMS was designed around several warehouses; the backend records
+    // one free-text location per unit instead, so there is no per-user home site to
+    // report. Left as an empty string rather than inventing one.
+    warehouse: "",
+  };
 }

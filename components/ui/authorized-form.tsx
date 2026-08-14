@@ -23,10 +23,14 @@ type ServerAction = (
 /**
  * Every write in this system goes through here.
  *
- * Pressing Save does not save. It opens a confirmation that asks the signed-in
- * person for their PIN, and only a correct PIN releases the change — so each
- * line in the activity log is one someone put their own credential behind.
- * The PIN is verified on the server inside the action, never here.
+ * Pressing Save does not save: it opens a confirmation naming exactly what is about
+ * to change and to which record, and only that releases it.
+ *
+ * The PIN this dialog used to demand is gone. Identity now belongs to the RAASPAL
+ * platform, and every write is checked server-side against a signed token and the
+ * account's role — a boundary the browser cannot argue with, which a PIN typed into
+ * this dialog never was. What remains is the part that was always doing the real
+ * work: a deliberate pause that states the change in words before it happens.
  */
 export function AuthorizedForm({
   action,
@@ -52,7 +56,7 @@ export function AuthorizedForm({
   const [state, dispatch, pending] = useActionState(action, IDLE);
   const formRef = useRef<HTMLFormElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const pinRef = useRef<HTMLInputElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const toast = useToast();
 
@@ -62,10 +66,8 @@ export function AuthorizedForm({
       toast.show(state.message, "ok");
       onDone?.();
     }
-    if (state.status === "error") {
-      /* Stay on the dialog so the PIN can be retyped without losing the edit. */
-      pinRef.current?.select();
-    }
+    // On failure the dialog stays open with the message shown, so the edit behind it
+    // is never lost to a rejected save.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
@@ -73,23 +75,18 @@ export function AuthorizedForm({
     setOpen(true);
     const dialog = dialogRef.current;
     if (dialog && !dialog.open) dialog.showModal();
-    window.requestAnimationFrame(() => pinRef.current?.focus());
+    // Focus the confirm button, not the form behind it — the dialog is the step.
+    window.requestAnimationFrame(() => confirmRef.current?.focus());
   }
 
   function closeDialog() {
     setOpen(false);
-    if (pinRef.current) pinRef.current.value = "";
     dialogRef.current?.close();
   }
 
   function confirm() {
     const form = formRef.current;
     if (!form) return;
-    const pin = pinRef.current?.value ?? "";
-    if (pin.length < 4) {
-      pinRef.current?.focus();
-      return;
-    }
     startTransition(() => dispatch(new FormData(form)));
   }
 
@@ -136,7 +133,7 @@ export function AuthorizedForm({
               </span>
               <div className="min-w-0">
                 <h2 id="confirm-title" className="text-[0.9375rem] font-semibold leading-tight">
-                  Confirm with your PIN
+                  Confirm this change
                 </h2>
                 <p className="mt-1 text-[0.8125rem] text-muted">
                   {intent}
@@ -148,39 +145,6 @@ export function AuthorizedForm({
             </div>
 
             <div className="mt-4">
-              <label
-                htmlFor="confirm-pin"
-                className="mb-1.5 block text-[0.8125rem] font-medium"
-              >
-                Your six-digit PIN
-              </label>
-              <input
-                ref={pinRef}
-                id="confirm-pin"
-                name="pin"
-                type="password"
-                inputMode="numeric"
-                autoComplete="off"
-                maxLength={12}
-                placeholder="••••••"
-                aria-describedby={
-                  state.status === "error" ? "confirm-error" : "confirm-hint"
-                }
-                aria-invalid={state.status === "error"}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    confirm();
-                  }
-                }}
-                className={cx(
-                  "h-11 w-full rounded-md border bg-surface px-3 text-center font-mono text-lg tracking-[0.5em]",
-                  "transition-colors duration-150 placeholder:tracking-[0.5em] placeholder:text-faint",
-                  state.status === "error"
-                    ? "border-[var(--crit-dot)]"
-                    : "border-line-strong focus:border-[var(--focus)]",
-                )}
-              />
               {state.status === "error" ? (
                 <p
                   id="confirm-error"
@@ -200,11 +164,11 @@ export function AuthorizedForm({
               <Button variant="ghost" onClick={closeDialog} disabled={pending}>
                 Cancel
               </Button>
-              <Button variant="primary" onClick={confirm} disabled={pending}>
+              <Button ref={confirmRef} variant="primary" onClick={confirm} disabled={pending}>
                 {pending ? (
                   <>
                     <Loader2 size={15} className="animate-spin" aria-hidden />
-                    Confirming
+                    Saving
                   </>
                 ) : (
                   "Confirm change"

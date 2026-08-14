@@ -1,70 +1,98 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, MapPin } from "lucide-react";
 import Link from "next/link";
 
-import { CATEGORY_META } from "@/lib/catalog";
-import { baht, cx } from "@/lib/format";
-import type { Robot } from "@/lib/types";
-import { summarizeStock } from "@/lib/types";
 import { DemoChip, StockBadge } from "@/components/ui/badge";
-import { StockMeter } from "@/components/ui/stock-meter";
+import { ROBOT_TYPE_LABELS, type RobotStockEntryResponse } from "@/lib/backend-types";
+import { cx, num } from "@/lib/format";
 import { RobotImage } from "./robot-image";
 
 /**
- * The catalogue card. Everything on it answers a question someone actually
- * asks about a robot: what is it, what does it cost, can I sell one today.
+ * The catalogue card.
+ *
+ * <p>Everything on it answers a question someone actually asks in a warehouse: what
+ * is it, how many are there, where is it kept. The seed version also carried a
+ * buy-off price and a per-warehouse stock meter; `robot_inventory_temp` records
+ * neither a price nor a location breakdown, so both are gone rather than filled in
+ * with a plausible-looking zero.
  */
-export function RobotCard({ robot }: { robot: Robot }) {
-  const stock = summarizeStock(robot);
+export function RobotCard({
+  entry,
+  canWrite,
+}: {
+  entry: RobotStockEntryResponse;
+  canWrite?: boolean;
+}) {
+  const demo = entry.status === "DEMO";
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-lg border border-line bg-surface transition-colors duration-150 hover:border-line-strong focus-within:border-[var(--focus)]">
       <RobotImage
-        name={robot.name}
-        category={robot.category}
-        src={robot.image}
+        name={entry.displayName}
+        robotType={entry.robotType}
+        src={entry.imageUrl}
         className="aspect-4/3 border-b border-line"
       />
 
       <div className="flex min-w-0 flex-1 flex-col p-3.5">
         <div className="flex items-start justify-between gap-2">
-          <p className="eyebrow">{CATEGORY_META[robot.category].label}</p>
-          <p className="shrink-0 font-mono text-[0.625rem] text-faint">
-            {robot.modelId}
-          </p>
+          <p className="eyebrow">{ROBOT_TYPE_LABELS[entry.robotType]}</p>
+          {entry.version ? (
+            <p className="shrink-0 font-mono text-[0.625rem] text-faint">{entry.version}</p>
+          ) : null}
         </div>
 
         <h3 className="mt-1.5 text-[0.9375rem] font-semibold leading-tight">
           {/* The whole card is the hit target; the link keeps the accessible name. */}
-          <Link href={`/robots/${robot.slug}`} className="outline-none">
+          <Link href={`/robots/${entry.id}`} className="outline-none">
             <span className="absolute inset-0" aria-hidden />
-            {robot.name}
+            {entry.displayName}
           </Link>
         </h3>
-        <p className="mt-1 line-clamp-1 text-[0.75rem] text-muted">{robot.tagline}</p>
+
+        {entry.note ? (
+          <p className="mt-1 line-clamp-1 text-[0.75rem] text-muted">{entry.note}</p>
+        ) : null}
 
         <div className="mt-3 flex items-baseline justify-between gap-2 border-t border-line pt-3">
-          <span className="text-[0.6875rem] text-muted">Buy-off</span>
-          <span className="font-mono text-[0.9375rem] font-semibold tabular-nums">
-            {baht(robot.buyOff)}
+          <span className="text-[0.6875rem] text-muted">
+            {demo ? "Demo" : "In stock"}
+          </span>
+          <span className="font-mono text-[1.0625rem] font-semibold tabular-nums">
+            {num(entry.quantity)}
+            <span className="ml-1 font-sans text-[0.6875rem] font-normal text-muted">
+              {entry.quantity === 1 ? "unit" : "units"}
+            </span>
           </span>
         </div>
 
-        <div className="mt-3">
-          <StockMeter robot={robot} density="compact" />
-        </div>
-
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-          <StockBadge state={stock.state} count={stock.onHand} />
-          <DemoChip count={stock.demo} />
+          {/* Zero first: DemoChip renders nothing at a count of 0, which would leave
+              the row blank and read as missing data rather than as "none held". */}
+          {entry.quantity === 0 ? (
+            <StockBadge state="out-of-stock" />
+          ) : demo ? (
+            <DemoChip count={entry.quantity} />
+          ) : (
+            <StockBadge state="in-stock" count={entry.quantity} />
+          )}
+          {entry.location ? (
+            <span className="inline-flex items-center gap-1 text-[0.6875rem] text-muted">
+              <MapPin size={11} aria-hidden />
+              {entry.location}
+            </span>
+          ) : null}
         </div>
 
+        {/* Spelled out rather than left to "view details". Someone looking for where
+            to change a count should not have to guess that the detail page is also
+            the edit page. */}
         <p
           className={cx(
             "mt-3 flex items-center gap-1 text-[0.75rem] font-medium text-[var(--brand-ink)]",
             "transition-transform duration-150 group-hover:translate-x-0.5",
           )}
         >
-          View details
+          {canWrite ? "View and edit" : "View details"}
           <ArrowRight size={13} aria-hidden />
         </p>
       </div>

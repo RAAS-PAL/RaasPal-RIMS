@@ -12,16 +12,16 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { CATEGORY_META } from "@/lib/catalog";
+import type { BackendRobotType } from "@/lib/backend-types";
 import { cx, num } from "@/lib/format";
-import type { CategoryId } from "@/lib/types";
 
+/** A robot the warehouse holds, trimmed to what search needs. */
 export interface RobotIndexEntry {
-  slug: string;
+  id: string;
+  /** "Gausium Phantas v1.3" — already assembled server-side. */
   name: string;
-  modelId: string;
-  category: CategoryId;
-  onHand: number;
+  robotType: BackendRobotType;
+  quantity: number;
 }
 
 interface Destination {
@@ -40,14 +40,18 @@ const PAGES: Destination[] = [
   { href: "/accounts", label: "Accounts", context: "Overview", icon: Users },
 ];
 
-function score(query: string, entry: { name: string; modelId: string }): number {
+/**
+ * Ranks a match: a prefix beats a substring.
+ *
+ * <p>One field now instead of two. `name` is the assembled display name — brand,
+ * model and version together — so searching "phantas" or "gausium" or "v1.3" all
+ * hit it, and the separate model-id field that used to exist has nothing left to add.
+ */
+function score(query: string, entry: { name: string }): number {
   const q = query.toLowerCase();
   const name = entry.name.toLowerCase();
-  const model = entry.modelId.toLowerCase();
   if (name.startsWith(q)) return 0;
-  if (model.startsWith(q)) return 1;
   if (name.includes(q)) return 2;
-  if (model.includes(q)) return 3;
   return -1;
 }
 
@@ -111,7 +115,7 @@ export function CommandPalette({ robots }: { robots: RobotIndexEntry[] }) {
   const flat = useMemo(
     () => [
       ...results.pages.map((page) => page.href),
-      ...results.matches.map((robot) => `/robots/${robot.slug}`),
+      ...results.matches.map((robot) => `/robots/${robot.id}`),
     ],
     [results],
   );
@@ -192,7 +196,7 @@ export function CommandPalette({ robots }: { robots: RobotIndexEntry[] }) {
             <div className="max-h-[52vh] overflow-y-auto p-2">
               {flat.length === 0 ? (
                 <p className="px-3 py-8 text-center text-[0.8125rem] text-muted">
-                  Nothing matches “{query}”. Try a model ID such as BEETLE.
+                  Nothing matches “{query}”.
                 </p>
               ) : null}
 
@@ -218,18 +222,20 @@ export function CommandPalette({ robots }: { robots: RobotIndexEntry[] }) {
                     const position = results.pages.length + index;
                     return (
                       <Row
-                        key={robot.slug}
+                        key={robot.id}
                         active={cursor === position}
-                        onSelect={() => go(`/robots/${robot.slug}`)}
+                        onSelect={() => go(`/robots/${robot.id}`)}
                         onHover={() => setCursor(position)}
                         icon={
                           <span className="font-mono text-[0.625rem] font-semibold">
-                            {robot.modelId.slice(0, 3)}
+                            {robot.name.slice(0, 2).toUpperCase()}
                           </span>
                         }
                         label={robot.name}
-                        context={CATEGORY_META[robot.category].label}
-                        trailing={`${num(robot.onHand)} on hand`}
+                        context={
+                          robot.robotType.charAt(0) + robot.robotType.slice(1).toLowerCase()
+                        }
+                        trailing={`${num(robot.quantity)} held`}
                       />
                     );
                   })}

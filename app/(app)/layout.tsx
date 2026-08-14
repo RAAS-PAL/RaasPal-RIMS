@@ -3,40 +3,45 @@ import type { RobotIndexEntry } from "@/components/shell/command-palette";
 import { ToastProvider } from "@/components/ui/toast";
 import { signOutAction } from "@/lib/actions";
 import { requireUser } from "@/lib/auth";
-import { CATEGORY_ORDER } from "@/lib/catalog";
-import { listRobots } from "@/lib/store";
-import { summarizeStock, type CategoryId } from "@/lib/types";
+import { ROBOT_TYPES, type BackendRobotType } from "@/lib/backend-types";
+import { getInventorySummary, listRobotStock } from "@/lib/stock-data";
+
+
+
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const robots = await listRobots();
 
+  // Both feed the sidebar, neither depends on the other.
+  const [robots, summary] = await Promise.all([listRobotStock(), getInventorySummary()]);
+
+  // Counted by units held, not by number of rows: "Cleaning 14" should mean fourteen
+  // machines, not fourteen records that might each hold one or forty.
   const counts = Object.fromEntries(
-    CATEGORY_ORDER.map((id) => [
-      id,
-      robots.filter((robot) => robot.category === id).length,
+    ROBOT_TYPES.map((type) => [
+      type,
+      robots
+        .filter((robot) => robot.robotType === type)
+        .reduce((sum, robot) => sum + robot.quantity, 0),
     ]),
-  ) as Record<CategoryId, number>;
+  ) as Record<BackendRobotType, number>;
 
   const nav: NavSummary = {
-    total: robots.length,
+    total: robots.reduce((sum, robot) => sum + robot.quantity, 0),
     counts,
-    attention: robots.filter(
-      (robot) => summarizeStock(robot).state !== "in-stock",
-    ).length,
+    // The bell means "needs ordering", which is a parts question — robot entries
+    // carry no reorder point, so counting them here would be inventing a threshold.
+    attention: summary.lowStockCount,
   };
 
   /* A light index for the command palette — enough to search and rank, not the
-     whole catalogue shipped to the browser. */
-  const index: RobotIndexEntry[] = [...robots]
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .map((robot) => ({
-      slug: robot.slug,
-      name: robot.name,
-      modelId: robot.modelId,
-      category: robot.category,
-      onHand: summarizeStock(robot).onHand,
-    }));
+     whole record shipped to the browser. */
+  const index: RobotIndexEntry[] = robots.map((robot) => ({
+    id: robot.id,
+    name: robot.displayName,
+    robotType: robot.robotType,
+    quantity: robot.quantity,
+  }));
 
   return (
     <ToastProvider>

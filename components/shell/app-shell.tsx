@@ -18,17 +18,22 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Mark, Wordmark } from "@/components/brand";
-import { CATEGORY_META, CATEGORY_ORDER, WAREHOUSES } from "@/lib/catalog";
+import {
+  ROBOT_TYPE_LABELS,
+  ROBOT_TYPES,
+  type BackendRobotType,
+} from "@/lib/backend-types";
 import { cx, initials, num } from "@/lib/format";
 import { can, describeRoles } from "@/lib/rbac";
-import type { CategoryId, SessionUser } from "@/lib/types";
+import type { SessionUser } from "@/lib/types";
 import { CommandPalette, type RobotIndexEntry } from "./command-palette";
 import { ThemeToggle } from "./theme-toggle";
 
+/** Counts are UNITS held, not rows — "Cleaning 14" means fourteen machines. */
 export interface NavSummary {
   total: number;
-  counts: Record<CategoryId, number>;
-  /** Robots at or below their reorder point — the bell count. */
+  counts: Record<BackendRobotType, number>;
+  /** Parts at or below their reorder point — the bell count. */
   attention: number;
 }
 
@@ -105,11 +110,10 @@ export function AppShell({
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <SiteMenu home={user.warehouse} />
             <Link
-              href="/inventory?view=attention"
-              aria-label={`${nav.attention} robots need restocking`}
-              title={`${nav.attention} robots need restocking`}
+              href="/inventory?lowStock=true"
+              aria-label={`${nav.attention} parts need restocking`}
+              title={`${nav.attention} parts need restocking`}
               className="relative flex size-9 items-center justify-center rounded-md text-muted transition-colors hover:bg-inset hover:text-fg"
             >
               <Bell size={17} aria-hidden />
@@ -211,7 +215,7 @@ function Sidebar({
           ) : null}
         </NavGroup>
 
-        <NavGroup title="Robot categories">
+        <NavGroup title="Robot types">
           <Suspense fallback={null}>
             <CategoryNav nav={nav} onNavigate={onClose} />
           </Suspense>
@@ -231,8 +235,14 @@ function Sidebar({
   );
 }
 
-/** Reads the active category from the query string, so the rail highlights the
- *  same filter the catalogue is showing. */
+/**
+ * The four robot types the platform models, with the units held of each.
+ *
+ * <p>This replaced seven invented categories (reception, patrol, cooking, canal
+ * cleaning, spider) that existed only in the seed data. A type with nothing in the
+ * warehouse is hidden rather than shown at zero: the rail is for getting somewhere,
+ * and four rows of "0" is just noise to read past.
+ */
 function CategoryNav({
   nav,
   onNavigate,
@@ -243,7 +253,11 @@ function CategoryNav({
   const pathname = usePathname();
   const params = useSearchParams();
   const onCatalogue = pathname === "/robots";
-  const active = params.get("category");
+  const active = params.get("type");
+
+  const types = ROBOT_TYPES.filter(
+    (type) => (nav.counts[type] ?? 0) > 0,
+  );
 
   return (
     <>
@@ -255,13 +269,13 @@ function CategoryNav({
         active={onCatalogue && !active}
         onNavigate={onNavigate}
       />
-      {CATEGORY_ORDER.map((id) => (
+      {types.map((type) => (
         <NavItem
-          key={id}
-          href={`/robots?category=${id}`}
-          label={CATEGORY_META[id].label}
-          count={nav.counts[id] ?? 0}
-          active={onCatalogue && active === id}
+          key={type}
+          href={`/robots?type=${type}`}
+          label={ROBOT_TYPE_LABELS[type]}
+          count={nav.counts[type] ?? 0}
+          active={onCatalogue && active === type}
           onNavigate={onNavigate}
           indent
         />
@@ -356,58 +370,10 @@ function useDismissable(onDismiss: () => void) {
   return ref;
 }
 
-function SiteMenu({ home }: { home: string }) {
-  const [open, setOpen] = useState(false);
-  const ref = useDismissable(() => setOpen(false));
-
-  return (
-    <div ref={ref} className="relative hidden md:block">
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        className="flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[0.8125rem] text-fg transition-colors hover:bg-inset"
-      >
-        <Warehouse size={15} aria-hidden className="text-muted" />
-        <span className="font-mono text-[0.75rem]">{home}</span>
-        <ChevronDown size={13} aria-hidden className="text-faint" />
-      </button>
-      {open ? (
-        <div
-          role="menu"
-          className="absolute right-0 top-11 z-50 w-64 overflow-hidden rounded-lg border border-line bg-surface shadow-[var(--shadow-pop)]"
-        >
-          <p className="eyebrow border-b border-line px-3 py-2.5">
-            Inventory by site
-          </p>
-          <ul className="p-1.5">
-            {WAREHOUSES.map((site) => (
-              <li key={site.code}>
-                <Link
-                  href={`/inventory?site=${site.code}`}
-                  role="menuitem"
-                  onClick={() => setOpen(false)}
-                  className="flex items-center justify-between gap-3 rounded-md px-2.5 py-2 text-[0.8125rem] transition-colors hover:bg-inset"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{site.name}</span>
-                    <span className="block text-[0.6875rem] text-muted">
-                      {site.city}
-                    </span>
-                  </span>
-                  <span className="shrink-0 font-mono text-[0.6875rem] text-muted">
-                    {site.code}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-    </div>
-  );
-}
+/* The "Inventory by site" menu that used to sit here is gone. It listed three
+   warehouses from `lib/catalog.ts` — Bangkok, Chiang Mai, Phuket — that exist only
+   in seed data, and each row linked to `/inventory?site=CODE`, a filter the parts
+   table no longer supports. Nothing in the schema records which site holds what. */
 
 function UserMenu({
   user,

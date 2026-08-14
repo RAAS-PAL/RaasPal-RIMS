@@ -16,6 +16,15 @@ export const CAPABILITIES = [
 
 export type Capability = (typeof CAPABILITIES)[number];
 
+/**
+ * Roles now arrive from the backend, one per account, mapped in backend-types.ts:
+ *   ADMIN → admin · INVENTORY_STAFF → editor · RAASPAL_TEAM → viewer
+ *
+ * `editor` gained `stock:write` as part of that. It previously could not change
+ * numbers — only `admin` could — which meant a warehouse account had to be a full
+ * admin, and would therefore also have been able to create accounts. Editor is now
+ * "the warehouse role": it changes stock and content, and manages nothing else.
+ */
 const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   admin: [
     "catalog:read",
@@ -25,20 +34,20 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     "stock:write",
     "users:manage",
   ],
-  editor: ["catalog:read", "content:write", "media:write"],
+  editor: ["catalog:read", "content:write", "media:write", "stock:write"],
   viewer: ["catalog:read"],
 };
 
 export const ROLE_LABEL: Record<Role, string> = {
   admin: "Admin",
-  editor: "Editor",
+  editor: "Inventory",
   viewer: "Viewer",
 };
 
 export const ROLE_DESCRIPTION: Record<Role, string> = {
-  admin: "Changes stock counts, prices and specifications, and manages accounts.",
-  editor: "Changes specifications, descriptions and media. Cannot change numbers.",
-  viewer: "Reads and exports the catalogue. Cannot change anything.",
+  admin: "Changes stock, prices and specifications, and manages accounts.",
+  editor: "Receives robots, changes stock counts, specifications and media.",
+  viewer: "Reads the catalogue and stock. Cannot change anything.",
 };
 
 export function capabilitiesOf(roles: Role[]): Set<Capability> {

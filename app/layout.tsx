@@ -1,22 +1,28 @@
 import type { Metadata, Viewport } from "next";
-import { Chakra_Petch, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { IBM_Plex_Mono, Inter, Noto_Sans_Thai } from "next/font/google";
+import Script from "next/script";
 
 import "./globals.css";
 
-/* Chakra Petch is cut by a Thai foundry and carries the same chamfered,
-   flat-cornered geometry as the RaasPal mark. It is the display voice only —
-   page titles and panel headings — and never runs body copy. */
-const display = Chakra_Petch({
-  variable: "--font-chakra",
+/* Inter runs both display and body, matching the internal operations console so
+   the two apps read as one platform.
+
+   This replaces Chakra Petch, which was chosen for a real reason — it is cut by a
+   Thai foundry and echoes the chamfered geometry of the RaasPal mark. That link
+   to the brand is lost here; it is recoverable by pointing --font-display back at
+   it while body copy stays on Inter. */
+const sans = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
   display: "swap",
 });
 
-const sans = IBM_Plex_Sans({
-  variable: "--font-plex-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+/* Inter carries no Thai glyphs. Customer and site names come from the same
+   backend as the console, where they are frequently Thai, so this sits behind
+   Inter in the stack and the browser resolves per glyph. */
+const thai = Noto_Sans_Thai({
+  variable: "--font-noto-thai",
+  subsets: ["thai"],
   display: "swap",
 });
 
@@ -49,21 +55,30 @@ export const viewport: Viewport = {
   ],
 };
 
-/* Runs before first paint so the stored theme never flashes the wrong way. */
-const themeBootstrap = `(function(){try{var s=localStorage.getItem("rims-theme")||"system";var d=s==="dark"||(s==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.dataset.theme=d?"dark":"light";}catch(e){document.documentElement.dataset.theme="light";}})();`;
-
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
       data-theme="light"
       suppressHydrationWarning
-      className={`${display.variable} ${sans.variable} ${mono.variable} h-full antialiased`}
+      className={`${sans.variable} ${thai.variable} ${mono.variable} h-full antialiased`}
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
-      </head>
-      <body className="min-h-full bg-app text-fg">{children}</body>
+      <body className="min-h-full bg-app text-fg">
+        {/*
+          The theme has to be applied before the browser paints, or a stored dark
+          preference flashes light and corrects itself.
+
+          It is a file rather than an inline script because `beforeInteractive` only
+          works with `src` — every example in Next's own docs uses one, and an inline
+          script with that strategy degrades to a plain <script> element in the React
+          tree, which React 19 warns about and never runs on the client.
+
+          The file is a few hundred bytes, same-origin, and preloaded by this
+          strategy, so the extra request costs effectively nothing.
+        */}
+        <Script src="/theme-bootstrap.js" strategy="beforeInteractive" />
+        {children}
+      </body>
     </html>
   );
 }
