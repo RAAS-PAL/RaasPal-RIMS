@@ -43,7 +43,7 @@ export default async function AddRobotPage() {
         title="Add a robot"
         trail={[{ label: "Dashboard", href: "/" }, { label: "Add robot" }]}
       />
-      <RobotStockForm />
+      <RobotStockForm redirectTo="/robots" />
     </>
   );
 }

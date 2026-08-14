@@ -1,6 +1,7 @@
 "use client";
 
 import { PackagePlus, Pencil } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { createRobotStockAction, updateRobotStockAction } from "@/lib/stock-actions";
 import {
@@ -25,13 +26,24 @@ import { RobotImagePicker } from "./image-picker";
  */
 export function RobotStockForm({
   entry,
-  onDone,
+  redirectTo,
 }: {
   /** Present when editing; absent when adding. */
   entry?: RobotStockEntryResponse;
-  onDone?: () => void;
+  /**
+   * Where to go once the save succeeds, and where Cancel returns to.
+   *
+   * <p>A path rather than a callback, because both pages that render this form are
+   * server components and cannot hand a function across the boundary.
+   */
+  redirectTo?: string;
 }) {
+  const router = useRouter();
   const editing = Boolean(entry);
+
+  // Leaving the form is what makes a save feel finished: staying on a filled-in form
+  // after "Robot added" reads as though nothing happened, and invites a second submit.
+  const leave = redirectTo ? () => router.push(redirectTo) : undefined;
 
   return (
     <Panel>
@@ -55,8 +67,8 @@ export function RobotStockForm({
           intent={editing ? "Save these changes" : "Add this robot to the warehouse record"}
           detail={editing ? (entry?.displayName ?? "") : "New robot"}
           submitLabel={editing ? "Save changes" : "Add robot"}
-          onDone={onDone}
-          onCancel={onDone}
+          onDone={leave}
+          onCancel={leave}
         >
           {editing ? <input type="hidden" name="id" value={entry?.id} /> : null}
 

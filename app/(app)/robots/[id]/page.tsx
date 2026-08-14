@@ -67,7 +67,7 @@ export default async function RobotDetailPage(props: { params: Promise<{ id: str
 
         {canWrite ? (
           <>
-            <RobotStockForm entry={entry} />
+            <RobotStockForm entry={entry} redirectTo="/robots" />
             <DeleteRobotButton id={entry.id} name={entry.displayName} />
           </>
         ) : (
