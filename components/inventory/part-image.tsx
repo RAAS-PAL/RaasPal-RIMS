@@ -15,14 +15,17 @@ export function PartImage({
   id,
   name,
   hasImage,
+  updatedAt,
   className,
 }: {
   id: string;
   name: string;
   hasImage: boolean;
+  /** Cache-busts the photo URL; see {@link imageUrl}. */
+  updatedAt?: string | null;
   className?: string;
 }) {
-  const src = imageUrl("part", id, hasImage);
+  const src = imageUrl("part", id, hasImage, updatedAt);
   return (
     <div
       className={cx(

@@ -195,7 +195,7 @@ export function RobotStockForm({
           <div className="mt-4">
             <Field label="Photo" htmlFor="imageUrl">
               <RobotImagePicker
-                initialValue={entry ? imageUrl("robot", entry.id, entry.hasImage) : null}
+                initialValue={entry ? imageUrl("robot", entry.id, entry.hasImage, entry.updatedAt) : null}
               />
             </Field>
           </div>

@@ -44,8 +44,10 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": upstream.headers.get("Content-Type") ?? "application/octet-stream",
-      // Long-lived and private: the image only changes when someone uploads a new
-      // one, and it is warehouse data rather than anything a shared cache should hold.
+      // Long-lived and private. Long-lived is only safe because callers version the
+      // URL with the row updatedAt (see lib/image-url.ts) — the path alone is keyed on
+      // the id and does not change when a photo is replaced. Private because this is
+      // warehouse data behind a session, not something a shared cache should hold.
       "Cache-Control": "private, max-age=31536000",
     },
   });

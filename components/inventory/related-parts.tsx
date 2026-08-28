@@ -60,7 +60,7 @@ export function RelatedParts({
                 <tr key={item.id} className="align-top hover:bg-subtle">
                   <th scope="row" className="px-4 py-3 font-normal sm:px-5">
                     <div className="flex items-start gap-3">
-                      <PartImage id={item.id} name={item.name} hasImage={item.hasImage} className="size-10" />
+                      <PartImage id={item.id} name={item.name} hasImage={item.hasImage} updatedAt={item.updatedAt} className="size-10" />
                       <div className="min-w-0">
                     <Link
                       href={`/inventory/${item.id}`}

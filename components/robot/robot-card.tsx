@@ -31,7 +31,7 @@ export function RobotCard({
       <RobotImage
         name={entry.displayName}
         robotType={entry.robotType}
-        src={imageUrl("robot", entry.id, entry.hasImage)}
+        src={imageUrl("robot", entry.id, entry.hasImage, entry.updatedAt)}
         className="aspect-4/3 border-b border-line"
       />
 

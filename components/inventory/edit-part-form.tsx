@@ -74,7 +74,7 @@ export function EditPartForm({
 
         <div className="sm:col-span-2">
           <Field label="Photo" htmlFor="imageUrl">
-            <RobotImagePicker initialValue={imageUrl("part", item.id, item.hasImage)} />
+            <RobotImagePicker initialValue={imageUrl("part", item.id, item.hasImage, item.updatedAt)} />
           </Field>
         </div>
 

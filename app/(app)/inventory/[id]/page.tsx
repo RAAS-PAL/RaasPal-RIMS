@@ -71,6 +71,7 @@ export default async function PartDetailPage(props: { params: Promise<{ id: stri
             id={item.id}
             name={item.name}
             hasImage={item.hasImage}
+            updatedAt={item.updatedAt}
             className="size-40 border border-line"
           />
           <div className="grid min-w-56 flex-1 gap-3 sm:grid-cols-2">
