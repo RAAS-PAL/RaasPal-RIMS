@@ -12,7 +12,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatTile } from "@/components/ui/stat";
 import { requireUser } from "@/lib/auth";
 import { MOVEMENT_LABELS } from "@/lib/backend-types";
-import { baht, num, stamp } from "@/lib/format";
+import { num, stamp } from "@/lib/format";
 import { can } from "@/lib/rbac";
 import { getInventoryItem, listItemMovements, listRobotStock } from "@/lib/stock-data";
 
@@ -52,7 +52,7 @@ export default async function PartDetailPage(props: { params: Promise<{ id: stri
       <PageHeader
         eyebrow="Inventory"
         title={item.name}
-        description={`${item.sku}${item.supplierPartNo ? ` · ${item.supplierPartNo}` : ""}`}
+        description={item.sku}
         trail={[
           { label: "Dashboard", href: "/" },
           { label: "Inventory", href: "/inventory" },
@@ -65,14 +65,9 @@ export default async function PartDetailPage(props: { params: Promise<{ id: stri
       </PageHeader>
 
       <div className="space-y-5">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatTile label="On hand" value={`${num(item.quantityOnHand)} ${item.unitOfMeasure}`} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <StatTile label="On hand" value={num(item.quantityOnHand)} />
           <StatTile label="Reorder at" value={num(item.reorderPoint)} />
-          <StatTile
-            label="Stock value"
-            value={item.unitCost == null ? "—" : baht(item.unitCost * item.quantityOnHand)}
-          />
-          <StatTile label="Location" value={item.location ?? "—"} />
         </div>
 
         <Panel>

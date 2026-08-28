@@ -126,21 +126,12 @@ export function AddPartForm({
                     </datalist>
                   </Field>
 
-                  <Field label="Unit" htmlFor="unitOfMeasure" hint="EA, SET, L, M.">
-                    <TextInput
-                      id="unitOfMeasure"
-                      name="unitOfMeasure"
-                      defaultValue="EA"
-                      placeholder="EA"
-                    />
-                  </Field>
-
-                  <Field label="SKU" htmlFor="sku" hint="Leave blank and one is issued.">
+                  <Field
+                    label="Part number"
+                    htmlFor="sku"
+                    hint="The manufacturer's number. Leave blank and one is issued."
+                  >
                     <TextInput id="sku" name="sku" placeholder="INV-000001" />
-                  </Field>
-
-                  <Field label="Supplier part number" htmlFor="supplierPartNo">
-                    <TextInput id="supplierPartNo" name="supplierPartNo" />
                   </Field>
 
                   <Field
@@ -169,14 +160,6 @@ export function AddPartForm({
                       min={0}
                       defaultValue="10"
                     />
-                  </Field>
-
-                  <Field label="Unit cost" htmlFor="unitCost" hint="Baht, per unit. Optional.">
-                    <NumberInput id="unitCost" name="unitCost" type="number" min={0} step="0.01" />
-                  </Field>
-
-                  <Field label="Location" htmlFor="location" hint="Where it is kept.">
-                    <TextInput id="location" name="location" placeholder="Warehouse · Rack B" />
                   </Field>
 
                   <div className="sm:col-span-2">

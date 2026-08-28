@@ -181,9 +181,6 @@ export default async function DashboardPage() {
                           <span className="font-mono font-semibold">
                             {num(item.quantityOnHand)}
                           </span>
-                          <span className="ml-1 text-[0.6875rem] text-muted">
-                            {item.unitOfMeasure}
-                          </span>
                         </td>
                         <td className="px-3 py-3 text-right font-mono text-muted">
                           {num(item.reorderPoint)}

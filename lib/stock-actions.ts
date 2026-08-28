@@ -68,7 +68,6 @@ function robotStockBody(formData: FormData, includeImage: boolean) {
     version: optional(formData, "version"),
     quantity: Number.isFinite(quantity) ? quantity : 0,
     status: (text(formData, "status") === "DEMO" ? "DEMO" : "IN_STOCK") as RobotUnitStatus,
-    location: optional(formData, "location"),
     note: optional(formData, "note"),
     // On edit the picker always submits a value — "" meaning remove — so the field
     // is sent as-is. On create there is nothing to preserve, so a blank is just null.
@@ -165,22 +164,17 @@ export async function createInventoryItemAction(
   if (!category) return fail("Choose or enter a category.");
 
   const reorderPoint = integer(formData, "reorderPoint");
-  const unitCost = text(formData, "unitCost");
 
   const body: InventoryItemRequest = {
     // Blank means "generate one" — the backend issues INV-000001 from a database
     // sequence, so two people adding parts at once cannot collide.
     sku: optional(formData, "sku"),
-    supplierPartNo: optional(formData, "supplierPartNo"),
     barcode: optional(formData, "barcode"),
     name,
     category,
     robotStockIds: many(formData, "robotStockIds"),
-    unitOfMeasure: optional(formData, "unitOfMeasure") ?? "EA",
     reorderPoint: Number.isFinite(reorderPoint) ? reorderPoint : 10,
     reorderQuantity: 0,
-    unitCost: unitCost === "" ? null : Number(unitCost),
-    location: optional(formData, "location"),
     isActive: true,
   };
 
@@ -235,20 +229,15 @@ export async function updateInventoryItemAction(
   if (!category) return fail("Choose or enter a category.");
 
   const reorderPoint = integer(formData, "reorderPoint");
-  const unitCost = text(formData, "unitCost");
 
   const body: InventoryItemRequest = {
     sku: optional(formData, "sku"),
-    supplierPartNo: optional(formData, "supplierPartNo"),
     barcode: optional(formData, "barcode"),
     name,
     category,
     robotStockIds: many(formData, "robotStockIds"),
-    unitOfMeasure: optional(formData, "unitOfMeasure") ?? "EA",
     reorderPoint: Number.isFinite(reorderPoint) ? reorderPoint : 10,
     reorderQuantity: 0,
-    unitCost: unitCost === "" ? null : Number(unitCost),
-    location: optional(formData, "location"),
     isActive: true,
   };
 

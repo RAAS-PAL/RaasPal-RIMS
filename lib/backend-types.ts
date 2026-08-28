@@ -146,7 +146,6 @@ export interface RobotUnitResponse {
   version: string | null;
   robotType: BackendRobotType;
   robotId: string | null;
-  location: string | null;
 }
 
 export interface ReceiveStockRequest {
@@ -154,7 +153,6 @@ export interface ReceiveStockRequest {
   model?: string | null;
   robotType?: BackendRobotType;
   robotId?: string | null;
-  location?: string | null;
   /** One per robot. The count is derived from these — never typed. */
   serialNumbers: string[];
   name?: string | null;
@@ -231,17 +229,14 @@ export interface LinkedRobot {
 export interface InventoryItemResponse {
   id: string;
   sku: string;
-  supplierPartNo: string | null;
   barcode: string | null;
   name: string;
   category: string;
   /** The warehouse robots this part fits. Empty means universal. */
   robots: LinkedRobot[];
-  unitOfMeasure: string;
   quantityOnHand: number;
   reorderPoint: number;
   reorderQuantity: number;
-  unitCost: number | null;
   location: string | null;
   isActive: boolean;
   /** Computed server-side so the dashboard count and the row badge cannot disagree. */
@@ -250,8 +245,8 @@ export interface InventoryItemResponse {
 }
 
 export interface InventoryItemRequest {
+  /** The part number. Blank means the backend issues INV-000001. */
   sku?: string | null;
-  supplierPartNo?: string | null;
   barcode?: string | null;
   name: string;
   category: string;
@@ -260,10 +255,8 @@ export interface InventoryItemRequest {
    * submits what is ticked, so the whole set is the intent and an untick removes.
    */
   robotStockIds?: string[] | null;
-  unitOfMeasure?: string | null;
   reorderPoint?: number | null;
   reorderQuantity?: number | null;
-  unitCost?: number | null;
   location?: string | null;
   isActive?: boolean | null;
 }

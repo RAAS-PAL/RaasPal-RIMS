@@ -63,7 +63,7 @@ export function AdjustStock({ item }: { item: InventoryItemResponse }) {
                   {item.name}
                 </h2>
                 <p className="mt-1 font-mono text-[0.75rem] text-muted">
-                  {item.sku} · {num(item.quantityOnHand)} {item.unitOfMeasure} on hand
+                  {item.sku} · {num(item.quantityOnHand)} on hand
                 </p>
               </div>
               <button
@@ -152,7 +152,7 @@ export function AdjustStock({ item }: { item: InventoryItemResponse }) {
                   ) : (
                     <Plus size={13} aria-hidden />
                   )}
-                  Currently {num(item.quantityOnHand)} {item.unitOfMeasure}, reorder at{" "}
+                  Currently {num(item.quantityOnHand)}, reorder at{" "}
                   {num(item.reorderPoint)}.
                 </p>
               </AuthorizedForm>

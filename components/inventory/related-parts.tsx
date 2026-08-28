@@ -65,7 +65,6 @@ export function RelatedParts({
                     </Link>
                     <p className="mt-0.5 font-mono text-[0.6875rem] text-muted">
                       {item.sku}
-                      {item.supplierPartNo ? ` · ${item.supplierPartNo}` : ""}
                     </p>
                   </th>
                   <td className="px-3 py-3 text-muted">{item.category}</td>
@@ -73,7 +72,6 @@ export function RelatedParts({
                     <span className="font-mono font-semibold tabular-nums">
                       {num(item.quantityOnHand)}
                     </span>
-                    <span className="ml-1 text-[0.6875rem] text-muted">{item.unitOfMeasure}</span>
                   </td>
                   <td className="px-4 py-3 sm:px-5">
                     {/* Same three states as the main parts table: none left stops

@@ -47,20 +47,8 @@ export function EditPartForm({
           <TextInput id="category" name="category" required defaultValue={item.category} />
         </Field>
 
-        <Field label="Unit" htmlFor="unitOfMeasure" hint="EA, SET, L, M.">
-          <TextInput id="unitOfMeasure" name="unitOfMeasure" defaultValue={item.unitOfMeasure} />
-        </Field>
-
-        <Field label="SKU" htmlFor="sku">
+        <Field label="Part number" htmlFor="sku">
           <TextInput id="sku" name="sku" defaultValue={item.sku} />
-        </Field>
-
-        <Field label="Supplier part number" htmlFor="supplierPartNo">
-          <TextInput
-            id="supplierPartNo"
-            name="supplierPartNo"
-            defaultValue={item.supplierPartNo ?? ""}
-          />
         </Field>
 
         <Field
@@ -75,21 +63,6 @@ export function EditPartForm({
             min={0}
             defaultValue={String(item.reorderPoint)}
           />
-        </Field>
-
-        <Field label="Unit cost" htmlFor="unitCost" hint="Baht, per unit. Optional.">
-          <NumberInput
-            id="unitCost"
-            name="unitCost"
-            type="number"
-            min={0}
-            step="0.01"
-            defaultValue={item.unitCost == null ? "" : String(item.unitCost)}
-          />
-        </Field>
-
-        <Field label="Location" htmlFor="location" hint="Where it is kept.">
-          <TextInput id="location" name="location" defaultValue={item.location ?? ""} />
         </Field>
 
         <div className="sm:col-span-2">
