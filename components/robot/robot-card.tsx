@@ -87,11 +87,17 @@ export function RobotCard({
 
         {/* Spelled out rather than left to "view details". Someone looking for where
             to change a count should not have to guess that the detail page is also
-            the edit page. */}
+            the edit page.
+
+            pointer-events-none is load-bearing. The hit target for the card is the
+            inset-0 span up in the heading, and the hover translate below gives this
+            paragraph its own stacking context — which, coming later in the DOM, would
+            otherwise paint over that span and swallow clicks on the one phrase people
+            actually aim at. */}
         <p
           className={cx(
             "mt-3 flex items-center gap-1 text-[0.75rem] font-medium text-[var(--brand-ink)]",
-            "transition-transform duration-150 group-hover:translate-x-0.5",
+            "pointer-events-none transition-transform duration-150 group-hover:translate-x-0.5",
           )}
         >
           {canWrite ? "View and edit" : "View details"}
