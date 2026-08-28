@@ -15,6 +15,7 @@ import {
   getInventorySummary,
   listInventoryCategories,
   listInventoryItems,
+  listRobotStock,
 } from "@/lib/stock-data";
 
 export const metadata: Metadata = { title: "Inventory" };
@@ -43,10 +44,13 @@ export default async function InventoryPage(props: PageProps<"/inventory">) {
   // Both mean the same thing to an operator, so both are honoured.
   const lowStock = one(params.lowStock) === "true" || one(params.view) === "attention";
 
-  const [items, categories, summary] = await Promise.all([
+  const [items, categories, summary, robots] = await Promise.all([
     listInventoryItems({ q: query || undefined, category: category || undefined, lowStock }),
     listInventoryCategories(),
     getInventorySummary(),
+    // For the "fits these robots" picker in the add dialog. Cached per render, and
+    // the sidebar already reads the same list, so this is not an extra round trip.
+    listRobotStock(),
   ]);
 
   const canEdit = can(user, "stock:write");
@@ -61,7 +65,7 @@ export default async function InventoryPage(props: PageProps<"/inventory">) {
         description="Spare parts and consumables the warehouse stocks. Counts change by recording a movement, never by overwriting a total."
         trail={[{ label: "Dashboard", href: "/" }, { label: "Inventory" }]}
       >
-        {canEdit ? <AddPartForm categories={categories} /> : null}
+        {canEdit ? <AddPartForm categories={categories} robots={robots} /> : null}
       </PageHeader>
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-3">

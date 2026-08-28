@@ -34,6 +34,16 @@ const optional = (form: FormData, key: string) => {
   return value === "" ? null : value;
 };
 
+/**
+ * Every ticked value of a checkbox group.
+ *
+ * <p>{@code getAll} rather than {@code get}: a group submits one entry per ticked
+ * box, and reading only the first would silently link a part to one robot when the
+ * operator ticked six.
+ */
+const many = (form: FormData, key: string) =>
+  form.getAll(key).map((v) => String(v).trim()).filter(Boolean);
+
 const integer = (form: FormData, key: string) => {
   const raw = text(form, key).replace(/[^\d-]/g, "");
   const value = Number.parseInt(raw, 10);
@@ -165,7 +175,7 @@ export async function createInventoryItemAction(
     barcode: optional(formData, "barcode"),
     name,
     category,
-    robotId: optional(formData, "robotId"),
+    robotStockIds: many(formData, "robotStockIds"),
     unitOfMeasure: optional(formData, "unitOfMeasure") ?? "EA",
     reorderPoint: Number.isFinite(reorderPoint) ? reorderPoint : 10,
     reorderQuantity: 0,
@@ -199,6 +209,58 @@ export async function createInventoryItemAction(
     return ok(`${name} added${created?.sku ? ` as ${created.sku}` : ""}.`);
   } catch (error) {
     return fail(describeBackendError(error, "That part could not be added."));
+  }
+}
+
+/**
+ * Edit a part, including which robots it fits.
+ *
+ * <p>The link set is sent whole, so unticking a robot removes the link. Sending a
+ * patch instead would make an unticked box ambiguous between "leave it" and
+ * "remove it", and the form has no way to express the difference.
+ */
+export async function updateInventoryItemAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const auth = await authorize("stock:write");
+  if (!auth.ok) return fail(auth.error);
+
+  const id = text(formData, "id");
+  if (!id) return fail("That part could not be identified.");
+
+  const name = text(formData, "name");
+  const category = text(formData, "category");
+  if (!name) return fail("Enter the part name.");
+  if (!category) return fail("Choose or enter a category.");
+
+  const reorderPoint = integer(formData, "reorderPoint");
+  const unitCost = text(formData, "unitCost");
+
+  const body: InventoryItemRequest = {
+    sku: optional(formData, "sku"),
+    supplierPartNo: optional(formData, "supplierPartNo"),
+    barcode: optional(formData, "barcode"),
+    name,
+    category,
+    robotStockIds: many(formData, "robotStockIds"),
+    unitOfMeasure: optional(formData, "unitOfMeasure") ?? "EA",
+    reorderPoint: Number.isFinite(reorderPoint) ? reorderPoint : 10,
+    reorderQuantity: 0,
+    unitCost: unitCost === "" ? null : Number(unitCost),
+    location: optional(formData, "location"),
+    isActive: true,
+  };
+
+  try {
+    await callBackend<InventoryItemResponse>(`/api/v1/inventory/items/${id}`, {
+      method: "PUT",
+      body,
+    });
+    refresh();
+    return ok(`${name} updated.`);
+  } catch (error) {
+    return fail(describeBackendError(error, "That part could not be updated."));
   }
 }
 

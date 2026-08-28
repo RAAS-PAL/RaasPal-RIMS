@@ -161,11 +161,21 @@ export default async function DashboardPage() {
                     {summary.lowStockItems.map((item) => (
                       <tr key={item.id} className="align-top hover:bg-subtle">
                         <th scope="row" className="px-4 py-3 font-normal sm:px-5">
-                          <p className="font-semibold">{item.name}</p>
+                          <Link
+                            href={`/inventory/${item.id}`}
+                            className="font-semibold underline-offset-2 hover:underline"
+                          >
+                            {item.name}
+                          </Link>
                           <p className="mt-0.5 font-mono text-[0.6875rem] text-muted">
                             {item.sku}
-                            {item.robotModel ? ` · ${item.robotModel}` : ""}
                           </p>
+                          {/* Which robots it fits — the reason a low count matters. */}
+                          {item.robots.length > 0 ? (
+                            <p className="mt-1 text-[0.6875rem] text-muted">
+                              {item.robots.map((robot) => robot.displayName).join(" · ")}
+                            </p>
+                          ) : null}
                         </th>
                         <td className="px-3 py-3">
                           <span className="font-mono font-semibold">

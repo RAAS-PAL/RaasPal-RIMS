@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Field, NumberInput, TextInput } from "@/components/ui/field";
 import { cx } from "@/lib/format";
 import { createInventoryItemAction } from "@/lib/stock-actions";
+import type { RobotStockEntryResponse } from "@/lib/backend-types";
+import { RobotLinksField } from "./robot-links-field";
 
 /**
  * Record a new spare part or consumable.
@@ -20,7 +22,14 @@ import { createInventoryItemAction } from "@/lib/stock-actions";
  * <p>SKU is optional. Left blank, the backend issues one from a database sequence, so
  * two people adding parts at the same moment cannot collide on it.
  */
-export function AddPartForm({ categories }: { categories: string[] }) {
+export function AddPartForm({
+  categories,
+  robots,
+}: {
+  categories: string[];
+  /** Every robot the warehouse holds, for the "fits these robots" picker. */
+  robots: RobotStockEntryResponse[];
+}) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
@@ -169,6 +178,10 @@ export function AddPartForm({ categories }: { categories: string[] }) {
                   <Field label="Location" htmlFor="location" hint="Where it is kept.">
                     <TextInput id="location" name="location" placeholder="Warehouse · Rack B" />
                   </Field>
+
+                  <div className="sm:col-span-2">
+                    <RobotLinksField robots={robots} />
+                  </div>
                 </div>
               </AuthorizedForm>
             </div>

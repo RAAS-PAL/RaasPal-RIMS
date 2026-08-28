@@ -222,6 +222,12 @@ export interface RobotStockEntryRequest {
 
 export type MovementType = "RECEIPT" | "ISSUE" | "ADJUSTMENT" | "RETURN";
 
+/** A robot a part fits — id to link to its page, name already assembled by the backend. */
+export interface LinkedRobot {
+  id: string;
+  displayName: string;
+}
+
 export interface InventoryItemResponse {
   id: string;
   sku: string;
@@ -229,8 +235,8 @@ export interface InventoryItemResponse {
   barcode: string | null;
   name: string;
   category: string;
-  robotId: string | null;
-  robotModel: string | null;
+  /** The warehouse robots this part fits. Empty means universal. */
+  robots: LinkedRobot[];
   unitOfMeasure: string;
   quantityOnHand: number;
   reorderPoint: number;
@@ -249,7 +255,11 @@ export interface InventoryItemRequest {
   barcode?: string | null;
   name: string;
   category: string;
-  robotId?: string | null;
+  /**
+   * The warehouse robots this part fits. Sent in full on every save — the form
+   * submits what is ticked, so the whole set is the intent and an untick removes.
+   */
+  robotStockIds?: string[] | null;
   unitOfMeasure?: string | null;
   reorderPoint?: number | null;
   reorderQuantity?: number | null;

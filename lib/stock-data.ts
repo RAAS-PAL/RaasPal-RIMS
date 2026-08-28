@@ -32,11 +32,14 @@ export async function listInventoryItems(options?: {
   q?: string;
   category?: string;
   lowStock?: boolean;
+  /** Only parts linked to this warehouse robot — the robot detail page's list. */
+  robotStockId?: string;
 }): Promise<InventoryItemResponse[]> {
   const params = new URLSearchParams({ page: "0", size: "200", sort: "name,asc" });
   if (options?.q) params.set("q", options.q);
   if (options?.category) params.set("category", options.category);
   if (options?.lowStock) params.set("lowStock", "true");
+  if (options?.robotStockId) params.set("robotStockId", options.robotStockId);
 
   const page = await callBackend<Paged<InventoryItemResponse>>(
     `/api/v1/inventory/items?${params.toString()}`,
@@ -117,6 +120,34 @@ export const listRobotStock = cache(
  * without this endpoint all rendered the same "that record does not exist" page. The
  * last one is the trap, because the record is fine and the fix is to restart the API.
  */
+/**
+ * One part, or null when the id genuinely does not exist.
+ *
+ * <p>Same error discipline as {@link getRobotStockEntry}: only a 404 becomes null,
+ * so a session expiry or an older backend does not masquerade as a missing part.
+ */
+export async function getInventoryItem(id: string): Promise<InventoryItemResponse | null> {
+  try {
+    return await callBackend<InventoryItemResponse>(`/api/v1/inventory/items/${id}`);
+  } catch (error) {
+    if (isMissingEndpoint(error)) throw error;
+    if (error instanceof BackendError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+/** Movement history for one part — how its count reached the number shown. */
+export async function listItemMovements(
+  id: string,
+  size = 50,
+): Promise<StockMovementResponse[]> {
+  const params = new URLSearchParams({ page: "0", size: String(size), sort: "createdAt,desc" });
+  const page = await callBackend<Paged<StockMovementResponse>>(
+    `/api/v1/inventory/items/${id}/movements?${params.toString()}`,
+  );
+  return page?.content ?? [];
+}
+
 export async function getRobotStockEntry(id: string): Promise<RobotStockEntryResponse | null> {
   try {
     return await callBackend<RobotStockEntryResponse>(`/api/v1/inventory/robot-stock/${id}`);

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { StockBadge } from "@/components/ui/badge";
 import type { InventoryItemResponse } from "@/lib/backend-types";
 import { baht, num, stamp } from "@/lib/format";
@@ -36,12 +38,23 @@ export function PartsTable({
         {items.map((item) => (
           <tr key={item.id} className="align-top hover:bg-subtle">
             <th scope="row" className="px-4 py-3 font-normal sm:px-5">
-              <p className="font-semibold">{item.name}</p>
+              <Link
+                href={`/inventory/${item.id}`}
+                className="font-semibold underline-offset-2 hover:underline"
+              >
+                {item.name}
+              </Link>
               <p className="mt-0.5 font-mono text-[0.6875rem] text-muted">
                 {item.sku}
                 {item.supplierPartNo ? ` · ${item.supplierPartNo}` : ""}
-                {item.robotModel ? ` · ${item.robotModel}` : ""}
               </p>
+              {/* Which robots, not how many: "3 robots" tells an operator nothing
+                  they can act on, and the names are what they are looking for. */}
+              {item.robots.length > 0 ? (
+                <p className="mt-1 text-[0.6875rem] text-muted">
+                  {item.robots.map((robot) => robot.displayName).join(" · ")}
+                </p>
+              ) : null}
             </th>
             <td className="px-3 py-3 text-muted">{item.category}</td>
             <td className="px-3 py-3 text-muted">{item.location ?? "—"}</td>

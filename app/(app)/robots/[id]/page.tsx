@@ -2,6 +2,7 @@ import { ShieldAlert } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { RelatedParts } from "@/components/inventory/related-parts";
 import { RobotStockForm } from "@/components/robot/robot-stock-form";
 import { RobotSummary } from "@/components/robot/robot-summary";
 import { DeleteRobotButton } from "@/components/robot/delete-robot-button";
@@ -11,7 +12,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth";
 import { ROBOT_TYPE_LABELS } from "@/lib/backend-types";
 import { can } from "@/lib/rbac";
-import { getRobotStockEntry } from "@/lib/stock-data";
+import { getRobotStockEntry, listInventoryItems } from "@/lib/stock-data";
 
 export async function generateMetadata(props: {
   params: Promise<{ id: string }>;
@@ -35,6 +36,10 @@ export default async function RobotDetailPage(props: { params: Promise<{ id: str
 
   const entry = await getRobotStockEntry(id);
   if (!entry) notFound();
+
+  // Fetched after the 404 check rather than in parallel: there is no point asking
+  // for the parts of a robot that does not exist.
+  const parts = await listInventoryItems({ robotStockId: id });
 
   const canWrite = can(user, "stock:write");
 
@@ -64,6 +69,8 @@ export default async function RobotDetailPage(props: { params: Promise<{ id: str
 
       <div className="space-y-5">
         <RobotSummary entry={entry} />
+
+        <RelatedParts items={parts} robotName={entry.displayName} />
 
         {canWrite ? (
           <>
