@@ -189,7 +189,11 @@ export interface RobotStockEntryResponse {
   model: string;
   /** Revision or configuration — "v1.3", "Roller Brush". */
   version: string | null;
-  imageUrl: string | null;
+  /**
+   * Whether a photo exists. The bytes come from `/api/image/robot/{id}`, not
+   * from this response — inlining them made every RIMS page carry 3.8 MB.
+   */
+  hasImage: boolean;
   quantity: number;
   /** What it was before the last change to the count. One step back, not a history. */
   previousQuantity: number | null;
@@ -232,6 +236,8 @@ export interface InventoryItemResponse {
   barcode: string | null;
   name: string;
   category: string;
+  /** Whether a photo exists. Bytes come from `/api/image/part/{id}`. */
+  hasImage: boolean;
   /** The warehouse robots this part fits. Empty means universal. */
   robots: LinkedRobot[];
   quantityOnHand: number;
@@ -247,6 +253,11 @@ export interface InventoryItemResponse {
 export interface InventoryItemRequest {
   /** The part number. Blank means the backend issues INV-000001. */
   sku?: string | null;
+  /**
+   * A base64 data: URI or http(s) URL. Omit to leave an existing photo alone;
+   * send an empty string to remove it.
+   */
+  imageUrl?: string | null;
   barcode?: string | null;
   name: string;
   category: string;

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { DemoChip, StockBadge } from "@/components/ui/badge";
 import { ROBOT_TYPE_LABELS, type RobotStockEntryResponse } from "@/lib/backend-types";
 import { cx, num } from "@/lib/format";
+import { imageUrl } from "@/lib/image-url";
+
 import { RobotImage } from "./robot-image";
 
 /**
@@ -29,7 +31,7 @@ export function RobotCard({
       <RobotImage
         name={entry.displayName}
         robotType={entry.robotType}
-        src={entry.imageUrl}
+        src={imageUrl("robot", entry.id, entry.hasImage)}
         className="aspect-4/3 border-b border-line"
       />
 

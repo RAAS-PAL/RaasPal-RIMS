@@ -15,7 +15,7 @@ import {
 import { leaseSchedule, maintenanceSchedule, warehouseName } from "./catalog";
 import { baht, num } from "./format";
 import { backendRoleForRoles } from "./backend-types";
-import { describeBackendError } from "./backend";
+import { callBackend, describeBackendError } from "./backend";
 import { can } from "./rbac";
 import { commitRobotChange } from "./store";
 import { ROLES, type ActivityEntry, type Role, type Spec } from "./types";
@@ -72,8 +72,43 @@ export async function signOutAction(): Promise<void> {
  * Identity is now the backend's, and every write is checked against a signed JWT and
  * a server-side role — so the PIN guarded nothing the API did not already guard, and
  * keeping it would have meant storing a secret in RIMS that the backend knows nothing
- * about. Password changes belong to the backend and do not exist there yet.
+ * about. Password changes now live on the backend; see changePasswordAction below.
  */
+
+/**
+ * Change your own password.
+ *
+ * <p>The backend takes the account from the token, so there is no account field here
+ * and no way to aim this at someone else. It also re-checks the current password:
+ * holding a session proves the browser was authenticated at some point, not that the
+ * owner is the one typing now.
+ *
+ * <p>The confirmation field is checked here rather than server-side — it exists to
+ * catch a typo before it becomes a password nobody knows, which is a form concern,
+ * not an API one.
+ */
+export async function changePasswordAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const currentPassword = String(formData.get("currentPassword") ?? "");
+  const newPassword = String(formData.get("newPassword") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  if (!currentPassword) return fail("Enter your current password.");
+  if (newPassword.length < 8) return fail("Your new password must be at least 8 characters.");
+  if (newPassword !== confirmPassword) return fail("The two new passwords do not match.");
+
+  try {
+    await callBackend("/api/v1/auth/change-password", {
+      method: "POST",
+      body: { currentPassword, newPassword },
+    });
+    return ok("Password changed. It applies the next time you sign in.");
+  } catch (error) {
+    return fail(describeBackendError(error, "That password could not be changed."));
+  }
+}
 
 /* ---------------------------------------------------------------------------
    Robot content

@@ -4,6 +4,7 @@ import { StockBadge } from "@/components/ui/badge";
 import type { InventoryItemResponse } from "@/lib/backend-types";
 import { num, stamp } from "@/lib/format";
 import { AdjustStock } from "./adjust-stock";
+import { PartImage } from "./part-image";
 
 /**
  * Every part, with its live count.
@@ -37,6 +38,9 @@ export function PartsTable({
         {items.map((item) => (
           <tr key={item.id} className="align-top hover:bg-subtle">
             <th scope="row" className="px-4 py-3 font-normal sm:px-5">
+              <div className="flex items-start gap-3">
+                <PartImage id={item.id} name={item.name} hasImage={item.hasImage} className="size-10" />
+                <div className="min-w-0">
               <Link
                 href={`/inventory/${item.id}`}
                 className="font-semibold underline-offset-2 hover:underline"
@@ -53,6 +57,8 @@ export function PartsTable({
                   {item.robots.map((robot) => robot.displayName).join(" · ")}
                 </p>
               ) : null}
+                </div>
+              </div>
             </th>
             <td className="px-3 py-3 text-muted">{item.category}</td>
             <td className="px-3 py-3 text-right">

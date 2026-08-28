@@ -10,6 +10,8 @@ import { Field, NumberInput, TextInput } from "@/components/ui/field";
 import { cx } from "@/lib/format";
 import { createInventoryItemAction } from "@/lib/stock-actions";
 import type { RobotStockEntryResponse } from "@/lib/backend-types";
+import { RobotImagePicker } from "@/components/robot/image-picker";
+
 import { RobotLinksField } from "./robot-links-field";
 
 /**
@@ -161,6 +163,12 @@ export function AddPartForm({
                       defaultValue="10"
                     />
                   </Field>
+
+                  <div className="sm:col-span-2">
+                    <Field label="Photo" htmlFor="imageUrl">
+                      <RobotImagePicker />
+                    </Field>
+                  </div>
 
                   <div className="sm:col-span-2">
                     <RobotLinksField robots={robots} />

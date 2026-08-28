@@ -116,3 +116,24 @@ export async function callBackend<T>(path: string, options: RequestOptions = {})
 
   return (payload?.data ?? null) as T;
 }
+
+/**
+ * Fetches a binary response from the backend, authenticated, for a route handler
+ * to stream on to the browser.
+ *
+ * <p>Needed because {@link callBackend} parses JSON, and images are not JSON. More
+ * importantly, an {@code <img src>} is a plain browser request that carries no
+ * Authorization header and cannot read the httpOnly session cookie's value — so the
+ * browser cannot call the backend's image endpoints itself. A same-origin route
+ * handler stands in front, adds the token server-side, and passes the bytes through.
+ *
+ * <p>Returns the upstream {@link Response} untouched so the caller can forward the
+ * status, content type and cache headers rather than reconstructing them.
+ */
+export async function fetchBackendBinary(path: string): Promise<Response> {
+  const token = await tokenFromCookie();
+  return fetch(`${BASE_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    cache: "no-store",
+  });
+}

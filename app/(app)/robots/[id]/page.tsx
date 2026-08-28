@@ -3,9 +3,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { RelatedParts } from "@/components/inventory/related-parts";
-import { RobotStockForm } from "@/components/robot/robot-stock-form";
 import { RobotSummary } from "@/components/robot/robot-summary";
-import { DeleteRobotButton } from "@/components/robot/delete-robot-button";
+import { RobotEditSection } from "@/components/robot/robot-edit-section";
 import { ButtonLink } from "@/components/ui/button";
 import { Panel, PanelBody } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
@@ -73,10 +72,7 @@ export default async function RobotDetailPage(props: { params: Promise<{ id: str
         <RelatedParts items={parts} robotName={entry.displayName} />
 
         {canWrite ? (
-          <>
-            <RobotStockForm entry={entry} redirectTo="/robots" />
-            <DeleteRobotButton id={entry.id} name={entry.displayName} />
-          </>
+          <RobotEditSection entry={entry} canEdit={canWrite} />
         ) : (
           <Panel>
             <PanelBody>

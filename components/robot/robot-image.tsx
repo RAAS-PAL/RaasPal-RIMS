@@ -105,9 +105,13 @@ export function RobotTypeGlyph({
 /**
  * A robot's photograph, or a stand-in when there is none.
  *
- * <p>A plain `<img>` rather than `next/image`: photos are stored as base64 `data:`
- * URIs on the row itself — the same choice the CM report signatures made, because
- * Render's disk is ephemeral — and the image optimiser cannot fetch or resize those.
+ * <p>`src` points at `/api/image/...`, a same-origin route handler that fetches the
+ * bytes from the backend with the session token. Photos are still base64 on the row
+ * (Render's disk is ephemeral), but they no longer travel inside list responses —
+ * so each one is a separate cacheable request rather than page weight.
+ *
+ * <p>A plain `<img>` rather than `next/image`: the optimiser would proxy an already
+ * downscaled photo for no gain, and `loading="lazy"` is what actually matters here.
  */
 export function RobotImage({
   name,
@@ -131,10 +135,12 @@ export function RobotImage({
       )}
     >
       {src ? (
-        // eslint-disable-next-line @next/next/no-img-element -- a data: URI cannot go through next/image
+        // eslint-disable-next-line @next/next/no-img-element -- served by our own route handler
         <img
           src={src}
           alt={`${name} photograph`}
+          loading="lazy"
+          decoding="async"
           className="size-full object-contain"
         />
       ) : (

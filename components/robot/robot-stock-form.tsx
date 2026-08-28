@@ -12,6 +12,8 @@ import {
 import { AuthorizedForm } from "@/components/ui/authorized-form";
 import { Field, Select, TextInput } from "@/components/ui/field";
 import { Panel, PanelBody, PanelHeader, PanelTitle } from "@/components/ui/panel";
+import { imageUrl } from "@/lib/image-url";
+
 import { RobotImagePicker } from "./image-picker";
 
 /**
@@ -27,6 +29,7 @@ import { RobotImagePicker } from "./image-picker";
 export function RobotStockForm({
   entry,
   redirectTo,
+  onDone,
 }: {
   /** Present when editing; absent when adding. */
   entry?: RobotStockEntryResponse;
@@ -37,6 +40,12 @@ export function RobotStockForm({
    * server components and cannot hand a function across the boundary.
    */
   redirectTo?: string;
+  /**
+   * Called after a successful save, and on Cancel. Takes precedence over
+   * {@link redirectTo} — used when the form is opened in place by an Edit
+   * button and should collapse rather than navigate away.
+   */
+  onDone?: () => void;
 }) {
   const router = useRouter();
   const editing = Boolean(entry);
@@ -48,12 +57,14 @@ export function RobotStockForm({
   // a layout is not re-rendered when you navigate between pages inside it — Next
   // fetches only the changed segment. Without this the rail keeps the totals from your
   // last full page load, so adding 27 delivery units leaves "Delivery 17" on screen.
-  const leave = redirectTo
-    ? () => {
-        router.push(redirectTo);
-        router.refresh();
-      }
-    : undefined;
+  const leave = onDone
+    ? onDone
+    : redirectTo
+      ? () => {
+          router.push(redirectTo);
+          router.refresh();
+        }
+      : undefined;
 
   return (
     <Panel>
@@ -183,7 +194,9 @@ export function RobotStockForm({
 
           <div className="mt-4">
             <Field label="Photo" htmlFor="imageUrl">
-              <RobotImagePicker initialValue={entry?.imageUrl ?? null} />
+              <RobotImagePicker
+                initialValue={entry ? imageUrl("robot", entry.id, entry.hasImage) : null}
+              />
             </Field>
           </div>
         </AuthorizedForm>

@@ -5,6 +5,8 @@ import { DemoChip, StockBadge } from "@/components/ui/badge";
 import { Panel } from "@/components/ui/panel";
 import { ROBOT_TYPE_LABELS, type RobotStockEntryResponse } from "@/lib/backend-types";
 import { num, stamp } from "@/lib/format";
+import { imageUrl } from "@/lib/image-url";
+
 import { RobotImage } from "./robot-image";
 
 /**
@@ -24,7 +26,7 @@ export function RobotSummary({ entry }: { entry: RobotStockEntryResponse }) {
         <RobotImage
           name={entry.displayName}
           robotType={entry.robotType}
-          src={entry.imageUrl}
+          src={imageUrl("robot", entry.id, entry.hasImage)}
           className="aspect-4/3 rounded-lg border border-line"
         />
 

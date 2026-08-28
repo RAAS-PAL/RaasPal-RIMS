@@ -4,7 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AdjustStock } from "@/components/inventory/adjust-stock";
-import { EditPartForm } from "@/components/inventory/edit-part-form";
+import { PartImage } from "@/components/inventory/part-image";
+import { PartEditSection } from "@/components/inventory/part-edit-section";
 import { StockBadge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState, Panel, PanelBody, PanelFlush, PanelHeader, PanelTitle } from "@/components/ui/panel";
@@ -65,9 +66,17 @@ export default async function PartDetailPage(props: { params: Promise<{ id: stri
       </PageHeader>
 
       <div className="space-y-5">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-wrap items-start gap-5">
+          <PartImage
+            id={item.id}
+            name={item.name}
+            hasImage={item.hasImage}
+            className="size-40 border border-line"
+          />
+          <div className="grid min-w-56 flex-1 gap-3 sm:grid-cols-2">
           <StatTile label="On hand" value={num(item.quantityOnHand)} />
-          <StatTile label="Reorder at" value={num(item.reorderPoint)} />
+            <StatTile label="Reorder at" value={num(item.reorderPoint)} />
+          </div>
         </div>
 
         <Panel>
@@ -121,16 +130,7 @@ export default async function PartDetailPage(props: { params: Promise<{ id: stri
               </PanelHeader>
             </Panel>
 
-            <Panel>
-              <PanelHeader>
-                <PanelTitle hint="Details and robot links. The count is changed above.">
-                  Edit part
-                </PanelTitle>
-              </PanelHeader>
-              <PanelBody>
-                <EditPartForm item={item} robots={robots} />
-              </PanelBody>
-            </Panel>
+            <PartEditSection item={item} robots={robots} canEdit={canWrite} />
           </>
         ) : (
           <Panel>

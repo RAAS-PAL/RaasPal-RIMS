@@ -6,6 +6,8 @@ import { EmptyState, Panel, PanelFlush, PanelHeader, PanelTitle } from "@/compon
 import type { InventoryItemResponse } from "@/lib/backend-types";
 import { num } from "@/lib/format";
 
+import { PartImage } from "./part-image";
+
 /**
  * The spare parts that fit one robot.
  *
@@ -57,6 +59,9 @@ export function RelatedParts({
               {items.map((item) => (
                 <tr key={item.id} className="align-top hover:bg-subtle">
                   <th scope="row" className="px-4 py-3 font-normal sm:px-5">
+                    <div className="flex items-start gap-3">
+                      <PartImage id={item.id} name={item.name} hasImage={item.hasImage} className="size-10" />
+                      <div className="min-w-0">
                     <Link
                       href={`/inventory/${item.id}`}
                       className="font-semibold underline-offset-2 hover:underline"
@@ -66,6 +71,8 @@ export function RelatedParts({
                     <p className="mt-0.5 font-mono text-[0.6875rem] text-muted">
                       {item.sku}
                     </p>
+                      </div>
+                    </div>
                   </th>
                   <td className="px-3 py-3 text-muted">{item.category}</td>
                   <td className="px-3 py-3 text-right">

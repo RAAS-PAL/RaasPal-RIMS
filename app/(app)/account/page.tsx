@@ -1,6 +1,7 @@
 import { KeyRound, ShieldCheck, Warehouse } from "lucide-react";
 import type { Metadata } from "next";
 
+import { ChangePasswordForm } from "@/components/auth/change-password-form";
 import { RoleBadges } from "@/components/ui/badge";
 import { Panel, PanelBody, PanelHeader, PanelTitle } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
@@ -139,12 +140,17 @@ export default async function AccountPage() {
           </PanelHeader>
           <PanelBody>
             <p className="text-[0.8rem] leading-relaxed text-muted">
-              Your account is the same one you use across the RAASPAL platform, and your
-              password is held there — this system never sees it. Every change you save
-              is checked against your role on the server.
+              Your account is the same one you use across the RAASPAL platform. Every
+              change you save is checked against your role on the server.
             </p>
+
+            <div className="mt-5 border-t border-line pt-5">
+              <ChangePasswordForm />
+            </div>
+
             <p className="mt-5 border-t border-line pt-4 text-[0.75rem] leading-relaxed text-muted">
-              To change your password or if you are locked out, ask a RAASPAL
+              Changing your password here changes it everywhere you sign in with this
+              account. If you are locked out and cannot sign in at all, ask a RAASPAL
               administrator.
             </p>
           </PanelBody>

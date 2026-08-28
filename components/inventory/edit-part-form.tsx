@@ -7,6 +7,9 @@ import { Field, NumberInput, TextInput } from "@/components/ui/field";
 import type { InventoryItemResponse, RobotStockEntryResponse } from "@/lib/backend-types";
 import { updateInventoryItemAction } from "@/lib/stock-actions";
 
+import { RobotImagePicker } from "@/components/robot/image-picker";
+import { imageUrl } from "@/lib/image-url";
+
 import { RobotLinksField } from "./robot-links-field";
 
 /**
@@ -22,9 +25,12 @@ import { RobotLinksField } from "./robot-links-field";
 export function EditPartForm({
   item,
   robots,
+  onDone,
 }: {
   item: InventoryItemResponse;
   robots: RobotStockEntryResponse[];
+  /** Called after a successful save, so the Edit section can collapse. */
+  onDone?: () => void;
 }) {
   const router = useRouter();
 
@@ -34,7 +40,8 @@ export function EditPartForm({
       intent="Save these changes to the part record"
       detail={item.name}
       submitLabel="Save changes"
-      onDone={() => router.refresh()}
+      onDone={onDone ?? (() => router.refresh())}
+      onCancel={onDone}
     >
       <input type="hidden" name="id" value={item.id} />
 
@@ -64,6 +71,12 @@ export function EditPartForm({
             defaultValue={String(item.reorderPoint)}
           />
         </Field>
+
+        <div className="sm:col-span-2">
+          <Field label="Photo" htmlFor="imageUrl">
+            <RobotImagePicker initialValue={imageUrl("part", item.id, item.hasImage)} />
+          </Field>
+        </div>
 
         <div className="sm:col-span-2">
           <RobotLinksField robots={robots} selectedIds={item.robots.map((r) => r.id)} />

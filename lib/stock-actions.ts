@@ -170,6 +170,8 @@ export async function createInventoryItemAction(
     // sequence, so two people adding parts at once cannot collide.
     sku: optional(formData, "sku"),
     barcode: optional(formData, "barcode"),
+    // A blank picker means no photo; omitted so the backend leaves it null.
+    imageUrl: optional(formData, "imageUrl"),
     name,
     category,
     robotStockIds: many(formData, "robotStockIds"),
@@ -233,6 +235,8 @@ export async function updateInventoryItemAction(
   const body: InventoryItemRequest = {
     sku: optional(formData, "sku"),
     barcode: optional(formData, "barcode"),
+    // Always sent on edit: "" means the operator cleared the photo.
+    imageUrl: String(formData.get("imageUrl") ?? ""),
     name,
     category,
     robotStockIds: many(formData, "robotStockIds"),
