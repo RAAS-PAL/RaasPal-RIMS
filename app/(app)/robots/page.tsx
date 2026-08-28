@@ -2,7 +2,7 @@ import { PackagePlus, X } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { RobotCard } from "@/components/robot/robot-card";
+import { RobotGrid } from "@/components/robot/robot-grid";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState, Panel } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
@@ -134,6 +134,10 @@ export default async function RobotsPage(props: PageProps<"/robots">) {
  *
  * <p>Not a panel wrapping the grid: a border around cards that already have borders
  * reads as a box inside a box. The heading rule carries the grouping on its own.
+ *
+ * <p>The count in the heading is the whole group, not what is currently drawn — the
+ * grid below fills in as you scroll, and a total that grew while you scrolled would
+ * make the shelf look like it was changing under you.
  */
 function RobotGroup({
   title,
@@ -165,11 +169,7 @@ function RobotGroup({
         </p>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3.5">
-        {robots.map((robot) => (
-          <RobotCard key={robot.id} entry={robot} canWrite={canWrite} />
-        ))}
-      </div>
+      <RobotGrid robots={robots} canWrite={canWrite} />
     </section>
   );
 }
