@@ -32,6 +32,12 @@ interface Destination {
   icon: typeof Search;
 }
 
+/**
+ * How many robots the dropdown shows. Anything past this is reached through the
+ * "see all matches" row, which is why the row reports the true total.
+ */
+const MAX_ROWS = 8;
+
 const PAGES: Destination[] = [
   { href: "/", label: "Dashboard", context: "Overview", icon: LayoutDashboard },
   { href: "/robots", label: "Robot catalogue", context: "Overview", icon: Boxes },
@@ -98,27 +104,45 @@ export function CommandPalette({ robots }: { robots: RobotIndexEntry[] }) {
       return {
         pages: PAGES,
         matches: robots.slice(0, 6),
+        total: 0,
       };
     }
     const pages = PAGES.filter((page) =>
       page.label.toLowerCase().includes(trimmed.toLowerCase()),
     );
-    const matches = robots
+    const ranked = robots
       .map((robot) => ({ robot, rank: score(trimmed, robot) }))
       .filter((entry) => entry.rank >= 0)
       .sort((a, b) => a.rank - b.rank || a.robot.name.localeCompare(b.robot.name))
-      .slice(0, 8)
       .map((entry) => entry.robot);
-    return { pages, matches };
+    // `total` is counted before the cap, so the "see all" row can say how much is
+    // being withheld. A dropdown that silently stops at eight is how someone
+    // concludes the warehouse holds eight of something.
+    return { pages, matches: ranked.slice(0, MAX_ROWS), total: ranked.length };
   }, [query, robots]);
+
+  /**
+   * The full result set as a page. First in the list, so Enter goes here: with
+   * duplicate model names in the catalogue, the top hit is not reliably the one
+   * you meant, and landing on a page that shows all of them beats opening a
+   * coin-flip. Arrowing down to a specific robot still opens it directly.
+   */
+  const searchHref =
+    query.trim() && results.matches.length > 0
+      ? `/robots?q=${encodeURIComponent(query.trim())}`
+      : null;
 
   const flat = useMemo(
     () => [
+      ...(searchHref ? [searchHref] : []),
       ...results.pages.map((page) => page.href),
       ...results.matches.map((robot) => `/robots/${robot.id}`),
     ],
-    [results],
+    [searchHref, results],
   );
+
+  /** Everything below the search row is pushed down by one when it is present. */
+  const offset = searchHref ? 1 : 0;
 
   function search(next: string) {
     setQuery(next);
@@ -200,14 +224,28 @@ export function CommandPalette({ robots }: { robots: RobotIndexEntry[] }) {
                 </p>
               ) : null}
 
+              {searchHref ? (
+                <Group title="Search">
+                  <Row
+                    active={cursor === 0}
+                    onSelect={() => go(searchHref)}
+                    onHover={() => setCursor(0)}
+                    icon={<Search size={15} aria-hidden />}
+                    label={`See all matches for “${query.trim()}”`}
+                    context="Robots"
+                    trailing={`${num(results.total)} found`}
+                  />
+                </Group>
+              ) : null}
+
               {results.pages.length > 0 ? (
                 <Group title="Go to">
                   {results.pages.map((page, index) => (
                     <Row
                       key={page.href}
-                      active={cursor === index}
+                      active={cursor === offset + index}
                       onSelect={() => go(page.href)}
-                      onHover={() => setCursor(index)}
+                      onHover={() => setCursor(offset + index)}
                       icon={<page.icon size={15} aria-hidden />}
                       label={page.label}
                       context={page.context}
@@ -219,7 +257,7 @@ export function CommandPalette({ robots }: { robots: RobotIndexEntry[] }) {
               {results.matches.length > 0 ? (
                 <Group title={query.trim() ? "Robots" : "Recently updated"}>
                   {results.matches.map((robot, index) => {
-                    const position = results.pages.length + index;
+                    const position = offset + results.pages.length + index;
                     return (
                       <Row
                         key={robot.id}
@@ -245,7 +283,7 @@ export function CommandPalette({ robots }: { robots: RobotIndexEntry[] }) {
 
             <footer className="flex items-center gap-4 border-t border-line bg-subtle px-4 py-2 text-[0.6875rem] text-muted">
               <span className="flex items-center gap-1.5">
-                <CornerDownLeft size={12} aria-hidden /> open
+                <CornerDownLeft size={12} aria-hidden /> {searchHref ? "see all" : "open"}
               </span>
               <span>↑ ↓ move</span>
               <span>Esc close</span>

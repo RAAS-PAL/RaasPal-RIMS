@@ -15,6 +15,15 @@ import { RobotImagePicker } from "@/components/robot/image-picker";
 import { RobotLinksField } from "./robot-links-field";
 
 /**
+ * What a new part is assumed to be until someone says otherwise.
+ *
+ * <p>Brushes, blades, filters and pads are the overwhelming majority of what the
+ * warehouse takes in, so this is right far more often than it is wrong — and when it
+ * is wrong the field is free text sitting right there to be overtyped.
+ */
+const DEFAULT_CATEGORY = "Consumables";
+
+/**
  * Record a new spare part or consumable.
  *
  * <p>Opens in a dialog rather than on its own route: adding a part is something done
@@ -114,12 +123,17 @@ export function AddPartForm({
                     hint="Free text. Existing categories are offered as you type."
                     required
                   >
+                    {/* Filled in, not merely hinted. Nearly everything the warehouse
+                        adds is a consumable, and this was a placeholder before — it
+                        read as already answered while submitting nothing, so a
+                        required field bounced on a form that looked complete.
+                        Overtype it, or pick another from the datalist. */}
                     <TextInput
                       id="category"
                       name="category"
                       required
                       list="part-categories"
-                      placeholder="Consumables"
+                      defaultValue={DEFAULT_CATEGORY}
                     />
                     <datalist id="part-categories">
                       {categories.map((name) => (
