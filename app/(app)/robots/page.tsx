@@ -10,6 +10,9 @@ import { requireUser } from "@/lib/auth";
 import {
   asRobotType,
   ROBOT_TYPE_LABELS,
+  STATUS_HINTS,
+  STATUS_LABELS,
+  WAREHOUSE_STATUSES,
   type RobotStockEntryResponse,
 } from "@/lib/backend-types";
 import { num } from "@/lib/format";
@@ -52,8 +55,6 @@ export default async function RobotsPage(props: PageProps<"/robots">) {
   const robots = query ? byType.filter((robot) => matches(robot, query)) : byType;
 
   const canWrite = can(user, "stock:write");
-  const inStock = robots.filter((robot) => robot.status === "IN_STOCK");
-  const onDemo = robots.filter((robot) => robot.status === "DEMO");
 
   return (
     <>
@@ -148,21 +149,20 @@ export default async function RobotsPage(props: PageProps<"/robots">) {
         </Panel>
       ) : (
         <div className="space-y-5">
-          <RobotGroup
-            title="In stock"
-            hint="Available to deploy or sell."
-            robots={inStock}
-            canWrite={canWrite}
-          />
-          {/* Kept as its own group rather than mixed into one grid: a demo unit is
-              on the premises but promised to a trial, and reading it alongside
-              sellable stock is how it gets counted twice. */}
-          <RobotGroup
-            title="Demo"
-            hint="Out on trial — held, not sellable."
-            robots={onDemo}
-            canWrite={canWrite}
-          />
+          {/* One band per state rather than one grid. A demo unit is on the premises
+              but promised to a trial, and one under repair is not sellable at all;
+              reading them alongside stock is how they get counted twice. Bands with
+              nothing in them render nothing, so a warehouse holding only stock still
+              sees a single heading. */}
+          {WAREHOUSE_STATUSES.map((status) => (
+            <RobotGroup
+              key={status}
+              title={STATUS_LABELS[status]}
+              hint={STATUS_HINTS[status]}
+              robots={robots.filter((robot) => robot.status === status)}
+              canWrite={canWrite}
+            />
+          ))}
         </div>
       )}
     </>

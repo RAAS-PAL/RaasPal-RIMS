@@ -5,8 +5,12 @@ import { useRouter } from "next/navigation";
 
 import { createRobotStockAction, updateRobotStockAction } from "@/lib/stock-actions";
 import {
+  PACKAGING_LABELS,
+  PACKAGING_OPTIONS,
   ROBOT_TYPE_LABELS,
   ROBOT_TYPES,
+  STATUS_LABELS,
+  WAREHOUSE_STATUSES,
   type RobotStockEntryResponse,
 } from "@/lib/backend-types";
 import { AuthorizedForm } from "@/components/ui/authorized-form";
@@ -170,11 +174,33 @@ export function RobotStockForm({
             <Field
               label="Status"
               htmlFor="status"
-              hint="Demo robots are held for trials and are not sellable."
+              hint="Only New Stock counts as sellable. One entry per robot per status."
             >
               <Select id="status" name="status" defaultValue={entry?.status ?? "IN_STOCK"}>
-                <option value="IN_STOCK">In stock</option>
-                <option value="DEMO">Demo</option>
+                {WAREHOUSE_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {STATUS_LABELS[status]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            {/* One value for the whole shelf, because that is what the column holds.
+                Splitting a row between boxed and unboxed units would need a count
+                column rather than this flag: the identity index blocks the obvious
+                workaround of a second row for the same model in the same status. */}
+            <Field
+              label="Packaging"
+              htmlFor="packaging"
+              hint="Applies to every unit on this row. Leave unrecorded until someone has looked."
+            >
+              <Select id="packaging" name="packaging" defaultValue={entry?.packaging ?? ""}>
+                <option value="">Not recorded</option>
+                {PACKAGING_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {PACKAGING_LABELS[option]}
+                  </option>
+                ))}
               </Select>
             </Field>
 

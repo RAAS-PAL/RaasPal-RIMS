@@ -1,9 +1,15 @@
 import { History, MapPin } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { DemoChip, StockBadge } from "@/components/ui/badge";
+import { PackagingChip, StatusChip, StockBadge } from "@/components/ui/badge";
 import { Panel } from "@/components/ui/panel";
-import { ROBOT_TYPE_LABELS, type RobotStockEntryResponse } from "@/lib/backend-types";
+import {
+  asStockRoomStatus,
+  PACKAGING_LABELS,
+  ROBOT_TYPE_LABELS,
+  STATUS_LABELS,
+  type RobotStockEntryResponse,
+} from "@/lib/backend-types";
 import { num, stamp } from "@/lib/format";
 import { imageUrl } from "@/lib/image-url";
 
@@ -18,7 +24,11 @@ import { RobotImage } from "./robot-image";
  * at" so the form below it can be about changing things.
  */
 export function RobotSummary({ entry }: { entry: RobotStockEntryResponse }) {
-  const demo = entry.status === "DEMO";
+  const status = asStockRoomStatus(entry.status) ?? "IN_STOCK";
+
+  const packaging = entry.packaging
+    ? `${entry.quantity} ${PACKAGING_LABELS[entry.packaging]}`
+    : "Not recorded";
 
   return (
     <Panel>
@@ -34,11 +44,10 @@ export function RobotSummary({ entry }: { entry: RobotStockEntryResponse }) {
           <div className="flex flex-wrap items-center gap-2">
             {entry.quantity === 0 ? (
               <StockBadge state="out-of-stock" />
-            ) : demo ? (
-              <DemoChip count={entry.quantity} />
             ) : (
-              <StockBadge state="in-stock" count={entry.quantity} />
+              <StatusChip status={status} count={entry.quantity} />
             )}
+            <PackagingChip quantity={entry.quantity} packaging={entry.packaging} />
             {entry.location ? (
               <span className="inline-flex items-center gap-1 text-[0.75rem] text-muted">
                 <MapPin size={12} aria-hidden />
@@ -52,7 +61,7 @@ export function RobotSummary({ entry }: { entry: RobotStockEntryResponse }) {
               {num(entry.quantity)}
             </span>
             <span className="text-[0.8125rem] font-medium text-faint">
-              {entry.quantity === 1 ? "unit" : "units"} · {demo ? "Demo" : "In stock"}
+              {entry.quantity === 1 ? "unit" : "units"} · {STATUS_LABELS[status]}
             </span>
           </p>
 
@@ -61,6 +70,10 @@ export function RobotSummary({ entry }: { entry: RobotStockEntryResponse }) {
             <Fact label="Brand">{entry.brand}</Fact>
             <Fact label="Model">{entry.model}</Fact>
             <Fact label="Version">{entry.version ?? "—"}</Fact>
+            <Fact label="Status">{STATUS_LABELS[status]}</Fact>
+            {/* Spelled out rather than left blank: "Not recorded" is a fact about
+                the shelf, and an empty cell reads as a bug. */}
+            <Fact label="Packaging">{packaging}</Fact>
             <Fact label="Last updated" span>
               {stamp(entry.updatedAt)}
             </Fact>

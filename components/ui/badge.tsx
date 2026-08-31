@@ -1,8 +1,22 @@
-import { AlertTriangle, CheckCircle2, CircleSlash, FlaskConical } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CircleSlash,
+  FlaskConical,
+  PackageOpen,
+  Undo2,
+  Wrench,
+} from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 
 import { cx, num } from "@/lib/format";
 import { ROLE_LABEL, sortRoles } from "@/lib/rbac";
+import {
+  PACKAGING_LABELS,
+  STATUS_LABELS,
+  type Packaging,
+  type StockRoomStatus,
+} from "@/lib/backend-types";
 import type { Role, StockState } from "@/lib/types";
 
 export type Tone = "neutral" | "brand" | "ok" | "warn" | "crit" | "demo";
@@ -84,6 +98,67 @@ export function DemoChip({ count }: { count: number }) {
       <FlaskConical size={13} aria-hidden />
       Demo
       <span className="tnum font-mono font-semibold">{num(count)}</span>
+    </Chip>
+  );
+}
+
+const STATUS_PRESENTATION: Record<StockRoomStatus, { tone: Tone; icon: ReactNode }> = {
+  IN_STOCK: { tone: "ok", icon: <CheckCircle2 size={13} aria-hidden /> },
+  DEMO: { tone: "demo", icon: <FlaskConical size={13} aria-hidden /> },
+  UNDER_REPAIR: { tone: "warn", icon: <Wrench size={13} aria-hidden /> },
+  RETURNED_FROM_CUSTOMER: { tone: "neutral", icon: <Undo2 size={13} aria-hidden /> },
+};
+
+/**
+ * Where a shelf stands, as a word and an icon rather than a colour alone.
+ *
+ * <p>Under Repair is warn and Returned neutral, not because either is an error, but
+ * because neither is sellable — a warehouse scanning for what it can promise a
+ * customer should not find them sitting in the same green as stock.
+ */
+export function StatusChip({
+  status,
+  count,
+}: {
+  status: StockRoomStatus;
+  count?: number;
+}) {
+  const { tone, icon } = STATUS_PRESENTATION[status];
+  return (
+    <Chip tone={tone}>
+      {icon}
+      {STATUS_LABELS[status]}
+      {typeof count === "number" && count > 0 ? (
+        <span className="tnum font-mono font-semibold">{num(count)}</span>
+      ) : null}
+    </Chip>
+  );
+}
+
+/**
+ * How many units are on this shelf, and whether they are boxed — "2 Box".
+ *
+ * <p>The number is the whole row, not a share of it. The column stores one word for
+ * the shelf, so either every unit on the row is boxed or none is. A shelf holding
+ * one boxed and two unboxed cannot be recorded at all, and no rendering of this
+ * column can invent the split.
+ *
+ * <p>Renders nothing when nobody has recorded it, which is not the same as zero.
+ */
+export function PackagingChip({
+  quantity,
+  packaging,
+}: {
+  quantity: number;
+  packaging: Packaging | null;
+}) {
+  if (!packaging || quantity <= 0) return null;
+
+  return (
+    <Chip tone="neutral">
+      <PackageOpen size={13} aria-hidden />
+      <span className="tnum font-mono font-semibold">{num(quantity)}</span>
+      {PACKAGING_LABELS[packaging]}
     </Chip>
   );
 }

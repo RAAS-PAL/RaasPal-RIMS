@@ -83,13 +83,81 @@ export function rolesForBackendRole(role: BackendRole): Role[] {
 /* ─── Robot units ──────────────────────────────────────────────────────── */
 
 /**
- * IN_STOCK and DEMO are the warehouse's concern and appear in RIMS; RENT and SOLD
+ * Where a robot stands. The four store-room states appear in RIMS; RENT and SOLD
  * are at a customer under a commercial agreement and are never fetched here.
  */
-export type RobotUnitStatus = "IN_STOCK" | "DEMO" | "RENT" | "SOLD";
+export type RobotUnitStatus =
+  | "IN_STOCK"
+  | "DEMO"
+  | "RENT"
+  | "SOLD"
+  | "UNDER_REPAIR"
+  | "RETURNED_FROM_CUSTOMER";
 
-/** What RIMS lists. A demo unit is out on trial but still ours and still coming back. */
-export const WAREHOUSE_STATUSES: RobotUnitStatus[] = ["IN_STOCK", "DEMO"];
+/**
+ * What RIMS lists and offers, in the order the warehouse moves through them: it
+ * arrives, it may go out on trial, it may come back, it may need work.
+ */
+export const WAREHOUSE_STATUSES = [
+  "IN_STOCK",
+  "DEMO",
+  "UNDER_REPAIR",
+  "RETURNED_FROM_CUSTOMER",
+] as const;
+
+/** The subset of {@link RobotUnitStatus} a shelf can actually be in. */
+export type StockRoomStatus = (typeof WAREHOUSE_STATUSES)[number];
+
+/**
+ * What the warehouse calls each state.
+ *
+ * IN_STOCK reads as "New Stock" and DEMO as "Demo Unit". The stored values are
+ * unchanged — these are labels only, which is why adding the two new states needed
+ * no rewrite of a single existing row.
+ */
+export const STATUS_LABELS: Record<StockRoomStatus, string> = {
+  IN_STOCK: "New Stock",
+  DEMO: "Demo Unit",
+  UNDER_REPAIR: "Under Repair",
+  RETURNED_FROM_CUSTOMER: "Returned from Customer",
+};
+
+/** One line on why a state exists, shown under the picker. */
+export const STATUS_HINTS: Record<StockRoomStatus, string> = {
+  IN_STOCK: "On the shelf and available to deploy or sell.",
+  DEMO: "Out on trial. Still ours and coming back, but not sellable.",
+  UNDER_REPAIR: "On our premises but not fit to deploy.",
+  RETURNED_FROM_CUSTOMER: "Back from a customer and not yet checked over.",
+};
+
+/**
+ * Whether the units on a shelf are still in their cartons.
+ *
+ * One value for the whole row, because that is what the column stores — see V37.
+ * A shelf of three holding one boxed cannot be recorded; that would need a count
+ * column rather than this flag.
+ *
+ * Null is a real answer, not a gap: it means nobody has looked.
+ */
+export type Packaging = "BOX" | "UNBOX";
+
+export const PACKAGING_OPTIONS = ["BOX", "UNBOX"] as const;
+
+export const PACKAGING_LABELS: Record<Packaging, string> = {
+  BOX: "Box",
+  UNBOX: "Unbox",
+};
+
+/** Narrows a form value to a status RIMS records, or undefined if it is none of them. */
+export function asStockRoomStatus(value: unknown): StockRoomStatus | undefined {
+  return WAREHOUSE_STATUSES.find((status) => status === value);
+}
+
+/** Narrows a form value to BOX or UNBOX. Anything else means unrecorded. */
+/** Narrows a form value to BOX or UNBOX. Anything else means unrecorded. */
+export function asPackaging(value: unknown): Packaging | undefined {
+  return PACKAGING_OPTIONS.find((option) => option === value);
+}
 
 /** Mirrors the backend `RobotType` enum. Both must be changed together. */
 export type BackendRobotType =
@@ -198,8 +266,10 @@ export interface RobotStockEntryResponse {
   /** What it was before the last change to the count. One step back, not a history. */
   previousQuantity: number | null;
   previousQuantityAt: string | null;
-  /** IN_STOCK or DEMO only. */
+  /** One of the four store-room states. */
   status: RobotUnitStatus;
+  /** BOX, UNBOX, or null where nobody has recorded it. One value for the whole row. */
+  packaging: Packaging | null;
   location: string | null;
   note: string | null;
   /** "Gausium Phantas v1.3" — assembled server-side so every screen agrees. */
@@ -216,6 +286,8 @@ export interface RobotStockEntryRequest {
   imageUrl?: string | null;
   quantity?: number | null;
   status?: RobotUnitStatus;
+  /** Omit or send null to leave it unrecorded. */
+  packaging?: Packaging | null;
   location?: string | null;
   note?: string | null;
 }

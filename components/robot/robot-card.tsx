@@ -1,8 +1,13 @@
 import { ArrowRight, MapPin } from "lucide-react";
 import Link from "next/link";
 
-import { DemoChip, StockBadge } from "@/components/ui/badge";
-import { ROBOT_TYPE_LABELS, type RobotStockEntryResponse } from "@/lib/backend-types";
+import { PackagingChip, StatusChip, StockBadge } from "@/components/ui/badge";
+import {
+  asStockRoomStatus,
+  ROBOT_TYPE_LABELS,
+  STATUS_LABELS,
+  type RobotStockEntryResponse,
+} from "@/lib/backend-types";
 import { cx, num } from "@/lib/format";
 import { imageUrl } from "@/lib/image-url";
 
@@ -24,7 +29,9 @@ export function RobotCard({
   entry: RobotStockEntryResponse;
   canWrite?: boolean;
 }) {
-  const demo = entry.status === "DEMO";
+  // Narrowed rather than asserted: the field is typed with the fleet states too,
+  // and a row somehow carrying one should read as stock, not crash the grid.
+  const status = asStockRoomStatus(entry.status) ?? "IN_STOCK";
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-lg border border-line bg-surface transition-colors duration-150 hover:border-line-strong focus-within:border-[var(--focus)]">
@@ -56,9 +63,7 @@ export function RobotCard({
         ) : null}
 
         <div className="mt-3 flex items-baseline justify-between gap-2 border-t border-line pt-3">
-          <span className="text-[0.6875rem] text-muted">
-            {demo ? "Demo" : "In stock"}
-          </span>
+          <span className="text-[0.6875rem] text-muted">{STATUS_LABELS[status]}</span>
           <span className="font-mono text-[1.0625rem] font-semibold tabular-nums">
             {num(entry.quantity)}
             <span className="ml-1 font-sans text-[0.6875rem] font-normal text-muted">
@@ -68,15 +73,14 @@ export function RobotCard({
         </div>
 
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-          {/* Zero first: DemoChip renders nothing at a count of 0, which would leave
-              the row blank and read as missing data rather than as "none held". */}
+          {/* Zero first: a status chip at a count of 0 would say the shelf holds
+              something. "Out of stock" is the more useful thing to read. */}
           {entry.quantity === 0 ? (
             <StockBadge state="out-of-stock" />
-          ) : demo ? (
-            <DemoChip count={entry.quantity} />
           ) : (
-            <StockBadge state="in-stock" count={entry.quantity} />
+            <StatusChip status={status} count={entry.quantity} />
           )}
+          <PackagingChip quantity={entry.quantity} packaging={entry.packaging} />
           {entry.location ? (
             <span className="inline-flex items-center gap-1 text-[0.6875rem] text-muted">
               <MapPin size={11} aria-hidden />

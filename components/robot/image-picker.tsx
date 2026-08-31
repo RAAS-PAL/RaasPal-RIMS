@@ -15,9 +15,20 @@ import { fileToRobotImageDataUrl } from "@/lib/robot-image";
  * the surrounding <form> can post it with everything else and the component needs
  * no state wiring from its parent.
  *
- * <p>The empty string is meaningful: it tells the server to clear an existing photo,
- * whereas omitting the field entirely leaves it untouched. That is why "Remove"
- * sets the input to "" rather than unsetting it.
+ * <p>Three states, and the difference between them is load-bearing:
+ *
+ * <ul>
+ *   <li><b>untouched</b> — the hidden input is not rendered at all, so the field never
+ *       reaches the server and the stored photo is left exactly as it was.</li>
+ *   <li><b>removed</b> — the input carries "", which tells the server to clear it.</li>
+ *   <li><b>chosen</b> — the input carries a base64 data URI.</li>
+ * </ul>
+ *
+ * <p>The untouched case is why this tracks the <em>choice</em> rather than the current
+ * photo. `initialValue` is a URL pointing at the image endpoint, not the image itself;
+ * seeding state with it and posting it back made every edit fail validation on the
+ * server with "Image must be an http(s) URL or a base64 data:image/... URI" — while
+ * the operator was changing something else entirely.
  */
 export function RobotImagePicker({
   name = "imageUrl",
@@ -25,11 +36,15 @@ export function RobotImagePicker({
   disabled = false,
 }: {
   name?: string;
-  /** Existing photo when editing; null when adding. */
+  /**
+   * Where the existing photo can be seen when editing; null when adding. Shown, never
+   * submitted — it is a URL for the image endpoint, not the image.
+   */
   initialValue?: string | null;
   disabled?: boolean;
 }) {
-  const [value, setValue] = useState<string | null>(initialValue);
+  /** null until the user picks or removes something. See the note above. */
+  const [choice, setChoice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -42,7 +57,7 @@ export function RobotImagePicker({
     setBusy(true);
     setError(null);
     try {
-      setValue(await fileToRobotImageDataUrl(file));
+      setChoice(await fileToRobotImageDataUrl(file));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "That image could not be read.");
     } finally {
@@ -50,12 +65,14 @@ export function RobotImagePicker({
     }
   }
 
-  /** "" clears the stored photo; null means "no change" and is never submitted. */
-  const submitted = value === null ? (initialValue === null ? "" : "") : value;
+  /** The stored photo until the user does something; "" once they remove it. */
+  const preview = choice === null ? initialValue : choice || null;
 
   return (
     <div className="space-y-2">
-      <input type="hidden" name={name} value={submitted} />
+      {/* Genuinely absent while untouched — an empty value here would read on the
+          server as "clear the photo", which is a different instruction. */}
+      {choice === null ? null : <input type="hidden" name={name} value={choice} />}
 
       <input
         ref={fileInput}
@@ -75,15 +92,15 @@ export function RobotImagePicker({
         onChange={(e) => void accept(e.target.files?.[0])}
       />
 
-      {value ? (
+      {preview ? (
         <div className="relative w-fit overflow-hidden rounded-lg border border-line">
           {/* eslint-disable-next-line @next/next/no-img-element -- a data: URI cannot go through next/image */}
-          <img src={value} alt="Robot" className="h-40 w-auto object-contain" />
+          <img src={preview} alt="Robot" className="h-40 w-auto object-contain" />
           {!disabled && (
             <button
               type="button"
               onClick={() => {
-                setValue("");
+                setChoice("");
                 if (fileInput.current) fileInput.current.value = "";
               }}
               className="absolute right-1.5 top-1.5 rounded-md bg-black/60 p-1 text-white hover:bg-black/80"

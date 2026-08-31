@@ -11,9 +11,9 @@ import type {
   InventoryItemResponse,
   RobotStockEntryRequest,
   RobotStockEntryResponse,
-  RobotUnitStatus,
   StockMovementRequest,
 } from "./backend-types";
+import { asPackaging, asStockRoomStatus, STATUS_LABELS } from "./backend-types";
 
 /**
  * Warehouse writes: receiving robots, editing them, and moving part counts.
@@ -59,19 +59,27 @@ const integer = (form: FormData, key: string) => {
    a quantity here can honestly be a number.
 --------------------------------------------------------------------------- */
 
-function robotStockBody(formData: FormData, includeImage: boolean) {
+function robotStockBody(formData: FormData) {
   const quantity = integer(formData, "quantity");
+  const image = formData.get("imageUrl");
   return {
     robotType: (optional(formData, "robotType") as BackendRobotType | null) ?? "CLEANING",
     brand: text(formData, "brand"),
     model: text(formData, "model"),
     version: optional(formData, "version"),
     quantity: Number.isFinite(quantity) ? quantity : 0,
-    status: (text(formData, "status") === "DEMO" ? "DEMO" : "IN_STOCK") as RobotUnitStatus,
+    // Narrowed against the real list rather than tested for one value. This read
+    // `=== "DEMO" ? "DEMO" : "IN_STOCK"`, which would silently turn Under Repair and
+    // Returned from Customer into New Stock the moment those states existed.
+    status: asStockRoomStatus(text(formData, "status")) ?? "IN_STOCK",
+    // "" from the "Not recorded" option means null, which is a real answer here.
+    packaging: asPackaging(text(formData, "packaging")) ?? null,
     note: optional(formData, "note"),
-    // On edit the picker always submits a value — "" meaning remove — so the field
-    // is sent as-is. On create there is nothing to preserve, so a blank is just null.
-    ...(includeImage ? { imageUrl: String(formData.get("imageUrl") ?? "") } : {}),
+    // Absent, empty and set are three different instructions, and the field is only
+    // forwarded when the picker actually rendered it. Coercing an absent field to ""
+    // the way this used to would tell the server to delete the photo every time
+    // somebody edited a robot without touching the picker.
+    ...(image === null ? {} : { imageUrl: String(image) }),
   } satisfies RobotStockEntryRequest;
 }
 
@@ -82,7 +90,7 @@ export async function createRobotStockAction(
   const auth = await authorize("stock:write");
   if (!auth.ok) return fail(auth.error);
 
-  const body = robotStockBody(formData, true);
+  const body = robotStockBody(formData);
   if (!body.brand) return fail("Enter the robot brand.");
   if (!body.model) return fail("Enter the robot model.");
 
@@ -93,7 +101,7 @@ export async function createRobotStockAction(
     });
     refresh();
     return ok(`${created?.displayName ?? body.model} added — ${body.quantity} in ${
-      body.status === "DEMO" ? "demo" : "stock"
+      STATUS_LABELS[body.status].toLowerCase()
     }.`);
   } catch (error) {
     // The backend names an existing row rather than tripping the unique index, so
@@ -112,7 +120,7 @@ export async function updateRobotStockAction(
   const id = text(formData, "id");
   if (!id) return fail("That robot could not be identified.");
 
-  const body = robotStockBody(formData, true);
+  const body = robotStockBody(formData);
   if (!body.brand) return fail("Enter the robot brand.");
   if (!body.model) return fail("Enter the robot model.");
 
