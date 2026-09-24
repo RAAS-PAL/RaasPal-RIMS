@@ -77,6 +77,8 @@ interface RequestOptions {
   token?: string | null;
   /** Reads are not cached: stock counts that lag reality are worse than a slow page. */
   revalidate?: number | false;
+  /** Extra headers, e.g. MK's view token on the public MK stock endpoints. */
+  headers?: Record<string, string>;
 }
 
 export async function callBackend<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -88,6 +90,7 @@ export async function callBackend<T>(path: string, options: RequestOptions = {})
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: revalidate === false ? "no-store" : undefined,

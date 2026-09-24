@@ -19,6 +19,8 @@ const CAPABILITY_LABEL: Record<(typeof CAPABILITIES)[number], string> = {
   "price:write": "Change buy-off prices",
   "stock:write": "Change stock counts",
   "users:manage": "Manage accounts and roles",
+  "mkstock:write": "Record MK spare parts stock",
+  "mkstock:pin": "Set MK's view PIN",
 };
 
 export default async function AccountPage() {

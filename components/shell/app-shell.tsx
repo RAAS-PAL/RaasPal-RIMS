@@ -1,10 +1,13 @@
 "use client";
 
 import {
+  BarChart3,
   Bell,
   Boxes,
   ChevronDown,
+  ClipboardList,
   History,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -42,6 +45,13 @@ const MAIN_NAV = [
   { href: "/robots", label: "Robot catalogue", icon: Boxes },
   { href: "/inventory", label: "Inventory", icon: Warehouse },
   { href: "/activity", label: "Activity log", icon: History },
+] as const;
+
+/** MK's spare parts - kept apart from RAAS PAL's own stock. */
+const MK_NAV = [
+  { href: "/mk-stock", label: "Dashboard", icon: BarChart3, exact: true },
+  { href: "/mk-stock/parts", label: "Stock list", icon: ClipboardList },
+  { href: "/mk-stock/access", label: "MK access", icon: KeyRound },
 ] as const;
 
 export function AppShell({
@@ -213,6 +223,23 @@ function Sidebar({
               active={pathname.startsWith("/accounts")}
             />
           ) : null}
+        </NavGroup>
+
+        <NavGroup title="MK spare parts">
+          {MK_NAV.map((item) => (
+            <NavItem
+              key={item.href}
+              href={item.href}
+              label={item.label}
+              icon={<item.icon size={16} aria-hidden />}
+              onNavigate={onClose}
+              active={
+                "exact" in item && item.exact
+                  ? pathname === item.href
+                  : pathname.startsWith(item.href)
+              }
+            />
+          ))}
         </NavGroup>
 
         <NavGroup title="Robot types">

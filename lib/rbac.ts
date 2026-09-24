@@ -12,6 +12,8 @@ export const CAPABILITIES = [
   "price:write",
   "stock:write",
   "users:manage",
+  "mkstock:write",
+  "mkstock:pin",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -33,9 +35,13 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     "price:write",
     "stock:write",
     "users:manage",
+    "mkstock:write",
+    "mkstock:pin",
   ],
-  editor: ["catalog:read", "content:write", "media:write", "stock:write"],
-  viewer: ["catalog:read"],
+  // MK's spare parts are run by the whole internal team, so every RAAS PAL account can move
+  // them - including viewers, who cannot touch RAAS PAL's own stock. MK's PIN is admin-only.
+  editor: ["catalog:read", "content:write", "media:write", "stock:write", "mkstock:write"],
+  viewer: ["catalog:read", "mkstock:write"],
 };
 
 export const ROLE_LABEL: Record<Role, string> = {
@@ -47,7 +53,7 @@ export const ROLE_LABEL: Record<Role, string> = {
 export const ROLE_DESCRIPTION: Record<Role, string> = {
   admin: "Changes stock, prices and specifications, and manages accounts.",
   editor: "Receives robots, changes stock counts, specifications and media.",
-  viewer: "Reads the catalogue and stock. Cannot change anything.",
+  viewer: "Reads the catalogue and stock, and records MK spare parts. Cannot change RAAS PAL stock.",
 };
 
 export function capabilitiesOf(roles: Role[]): Set<Capability> {
@@ -89,4 +95,6 @@ export const CAPABILITY_DENIAL: Record<Capability, string> = {
   "price:write": "Changing prices needs the Admin role.",
   "stock:write": "Changing stock counts needs the Admin role.",
   "users:manage": "Managing accounts needs the Admin role.",
+  "mkstock:write": "Your account cannot change MK stock.",
+  "mkstock:pin": "Setting MK's PIN needs the Admin role.",
 };
