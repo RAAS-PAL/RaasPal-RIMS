@@ -9,6 +9,7 @@ import {
   History,
   KeyRound,
   LayoutDashboard,
+  Package,
   LogOut,
   Menu,
   ShieldCheck,
@@ -18,7 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { Mark, Wordmark } from "@/components/brand";
 import {
@@ -225,27 +226,40 @@ function Sidebar({
           ) : null}
         </NavGroup>
 
-        <NavGroup title="MK spare parts">
-          {MK_NAV.map((item) => (
-            <NavItem
-              key={item.href}
-              href={item.href}
-              label={item.label}
-              icon={<item.icon size={16} aria-hidden />}
-              onNavigate={onClose}
-              active={
-                "exact" in item && item.exact
-                  ? pathname === item.href
-                  : pathname.startsWith(item.href)
-              }
-            />
-          ))}
-        </NavGroup>
+        <NavGroup title="Sections">
+          <NavSection
+            id="mk-spare-parts"
+            label="MK spare parts"
+            icon={<Package size={16} aria-hidden />}
+            current={pathname.startsWith("/mk-stock")}
+          >
+            {MK_NAV.map((item) => (
+              <NavItem
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                icon={<item.icon size={15} aria-hidden />}
+                onNavigate={onClose}
+                indent
+                active={
+                  "exact" in item && item.exact
+                    ? pathname === item.href
+                    : pathname.startsWith(item.href)
+                }
+              />
+            ))}
+          </NavSection>
 
-        <NavGroup title="Robot types">
-          <Suspense fallback={null}>
-            <CategoryNav nav={nav} onNavigate={onClose} />
-          </Suspense>
+          <NavSection
+            id="robot-types"
+            label="Robot types"
+            icon={<Boxes size={16} aria-hidden />}
+            current={pathname === "/robots"}
+          >
+            <Suspense fallback={null}>
+              <CategoryNav nav={nav} onNavigate={onClose} />
+            </Suspense>
+          </NavSection>
         </NavGroup>
       </div>
 
@@ -295,6 +309,7 @@ function CategoryNav({
         count={nav.total}
         active={onCatalogue && !active}
         onNavigate={onNavigate}
+        indent
       />
       {types.map((type) => (
         <NavItem
@@ -305,6 +320,7 @@ function CategoryNav({
           active={onCatalogue && active === type}
           onNavigate={onNavigate}
           indent
+          deep
         />
       ))}
     </>
@@ -320,6 +336,88 @@ function NavGroup({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+const NAV_EVENT = "rims-nav-change";
+
+function subscribeNav(onChange: () => void) {
+  window.addEventListener(NAV_EVENT, onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(NAV_EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+function readNav(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A sidebar parent you click to open, holding its sub-pages. It opens by itself when the
+ * current page is inside it, and remembers what the person opened or closed.
+ */
+function NavSection({
+  id,
+  label,
+  icon,
+  current,
+  children,
+}: {
+  id: string;
+  label: string;
+  icon: ReactNode;
+  /** The current page is one of this section's sub-pages. */
+  current: boolean;
+  children: ReactNode;
+}) {
+  const storageKey = `rims.nav.${id}`;
+  // "open" | "closed" as the person left it, or null when they have not chosen (or storage
+  // is blocked) - then the section just follows the current page.
+  const chosen = useSyncExternalStore(subscribeNav, () => readNav(storageKey), () => null);
+  const open = current || chosen === "open";
+
+  function toggle() {
+    try {
+      window.localStorage.setItem(storageKey, open ? "closed" : "open");
+      window.dispatchEvent(new Event(NAV_EVENT));
+    } catch {
+      // Not remembered this time - nothing else depends on it.
+    }
+  }
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        aria-controls={`nav-${id}`}
+        className={cx(
+          "flex w-full cursor-pointer items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[0.8125rem]",
+          "transition-colors duration-150",
+          current ? "font-semibold text-brand-ink" : "text-muted hover:bg-inset hover:text-fg",
+        )}
+      >
+        <span className="shrink-0 opacity-80">{icon}</span>
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+        <ChevronDown
+          size={15}
+          aria-hidden
+          className={cx("shrink-0 transition-transform duration-200", open ? "rotate-0" : "-rotate-90")}
+        />
+      </button>
+      {open ? (
+        <ul id={`nav-${id}`} className="mt-0.5 space-y-0.5">
+          {children}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
+
 function NavItem({
   href,
   label,
@@ -327,6 +425,7 @@ function NavItem({
   count,
   active,
   indent,
+  deep,
   onNavigate,
 }: {
   href: string;
@@ -335,6 +434,8 @@ function NavItem({
   count?: number;
   active: boolean;
   indent?: boolean;
+  /** One level further in, e.g. a robot type under "All robots". */
+  deep?: boolean;
   /** Closes the mobile drawer — following a link should leave it behind. */
   onNavigate?: () => void;
 }) {
@@ -347,7 +448,7 @@ function NavItem({
         className={cx(
           "group relative flex items-center gap-2.5 rounded-md py-2 pr-2 text-[0.8125rem]",
           "transition-colors duration-150",
-          indent ? "pl-8" : "pl-2.5",
+          deep ? "pl-12" : indent ? "pl-8" : "pl-2.5",
           active
             ? "bg-brand-wash font-semibold text-brand-ink"
             : "text-muted hover:bg-inset hover:text-fg",
