@@ -28,11 +28,12 @@
   --brand-900: #123f4c;
 
   /* Surfaces */
-  --bg-app: #f4f6f9;
+  --bg-app: #f8fafc;
   --bg-surface: #ffffff;
-  --bg-subtle: #f7f9fb;
-  --bg-inset: #edf1f5;
-  --bg-chrome: #0a1420; /* navigation rail — constant across themes */
+  --bg-subtle: #f9fbfd;
+  --bg-inset: #eef3f7;
+  --bg-chrome: #0a1420; /* dark brand panel (sign-in page) */
+  --bg-rail: #ffffff; /* navigation rail: light, like the page; colour is kept for accents */
 
   /* Text */
   --fg: #0b1622;
@@ -89,6 +90,7 @@
   --bg-subtle: #131e2a;
   --bg-inset: #17232f;
   --bg-chrome: #060c13;
+  --bg-rail: #0a121b;
 
   --fg: #e8eff5;
   --fg-muted: #9aaaba;
@@ -136,6 +138,7 @@
   --color-subtle: var(--bg-subtle);
   --color-inset: var(--bg-inset);
   --color-chrome: var(--bg-chrome);
+  --color-rail: var(--bg-rail);
 
   --color-fg: var(--fg);
   --color-muted: var(--fg-muted);

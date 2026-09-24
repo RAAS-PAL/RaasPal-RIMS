@@ -167,7 +167,7 @@ function Sidebar({
     <nav
       aria-label="Main"
       className={cx(
-        "fixed inset-y-0 left-0 z-50 flex w-[17rem] flex-col bg-chrome text-white/70",
+        "fixed inset-y-0 left-0 z-50 flex w-[17rem] flex-col border-r border-line bg-rail text-muted",
         "transition-transform duration-200 ease-out lg:translate-x-0",
         open ? "translate-x-0" : "-translate-x-full",
       )}
@@ -181,7 +181,7 @@ function Sidebar({
             <Mark className="size-[34px]" priority />
             <Wordmark className="h-[26px]" priority />
           </span>
-          <span className="mt-3 block border-t border-white/10 pt-2.5 font-display text-[0.6875rem] font-medium uppercase leading-tight tracking-[0.11em] text-white/45 transition-colors group-hover:text-white/70">
+          <span className="mt-3 block border-t border-line pt-2.5 font-display text-[0.6875rem] font-medium uppercase leading-tight tracking-[0.11em] text-muted transition-colors group-hover:text-fg">
             Robot Inventory
             <br />
             Management System
@@ -192,7 +192,7 @@ function Sidebar({
           type="button"
           onClick={onClose}
           aria-label="Close navigation"
-          className="-mr-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-white/50 transition-colors hover:bg-white/10 hover:text-white lg:hidden"
+          className="-mr-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-inset hover:text-fg lg:hidden"
         >
           <X size={17} aria-hidden />
         </button>
@@ -249,12 +249,12 @@ function Sidebar({
         </NavGroup>
       </div>
 
-      <div className="border-t border-white/10 px-4 py-3">
-        <p className="flex items-center gap-1.5 text-[0.6875rem] text-white/40">
+      <div className="border-t border-line px-4 py-3">
+        <p className="flex items-center gap-1.5 text-[0.6875rem] text-muted">
           <ShieldCheck size={12} aria-hidden />
           Signed in as {describeRoles(user.roles)}
         </p>
-        <p className="mt-1 truncate text-[0.8125rem] font-medium text-white/85">
+        <p className="mt-1 truncate text-[0.8125rem] font-medium text-fg">
           {user.name}
         </p>
       </div>
@@ -314,7 +314,7 @@ function CategoryNav({
 function NavGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="mb-5">
-      <p className="eyebrow px-2 pb-2 !text-white/35">{title}</p>
+      <p className="eyebrow px-2 pb-2 !text-muted">{title}</p>
       <ul className="space-y-0.5">{children}</ul>
     </div>
   );
@@ -349,8 +349,8 @@ function NavItem({
           "transition-colors duration-150",
           indent ? "pl-8" : "pl-2.5",
           active
-            ? "bg-white/10 font-medium text-white"
-            : "text-white/65 hover:bg-white/[0.06] hover:text-white",
+            ? "bg-brand-wash font-semibold text-brand-ink"
+            : "text-muted hover:bg-inset hover:text-fg",
         )}
       >
         {active ? (
@@ -365,7 +365,7 @@ function NavItem({
           <span
             className={cx(
               "shrink-0 rounded px-1.5 py-0.5 font-mono text-[0.6875rem] tabular-nums",
-              active ? "bg-white/15 text-white" : "bg-white/[0.07] text-white/55",
+              active ? "bg-surface text-brand-ink" : "bg-inset text-muted",
             )}
           >
             {num(count)}
