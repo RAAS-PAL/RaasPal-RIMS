@@ -1,6 +1,5 @@
 import { KeyRound, Link2, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 
 import { CopyLink, MkDisableAccess, MkSetPin } from "@/components/mk/mk-pin-admin";
 import { Chip } from "@/components/ui/badge";
@@ -17,10 +16,8 @@ export const metadata: Metadata = { title: "MK access" };
 export default async function MkAccessPage() {
   const user = await requireUser();
   const status = await staff.access();
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "rims.raaspal.com";
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  const link = `${proto}://${host}/mk`;
+  // Always the RIMS domain, whatever address staff opened RIMS on (a Vercel preview, localhost).
+  const link = `${(process.env.RIMS_PUBLIC_URL ?? "https://rims.raaspal.com").replace(/\/+$/, "")}/mk`;
   const isAdmin = can(user, "mkstock:pin");
 
   return (
