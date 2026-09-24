@@ -377,11 +377,17 @@ function NavSection({
   // "open" | "closed" as the person left it, or null when they have not chosen (or storage
   // is blocked) - then the section just follows the current page.
   const chosen = useSyncExternalStore(subscribeNav, () => readNav(storageKey), () => null);
-  const open = current || chosen === "open";
+  const pathname = usePathname();
+  // Arriving on one of the section's pages opens it; clicking the header still closes it
+  // while you stay on that page. Moving to another page opens it again.
+  const [closedOn, setClosedOn] = useState<string | null>(null);
+  const open = current ? closedOn !== pathname : chosen === "open";
 
   function toggle() {
+    const next = !open;
+    if (current) setClosedOn(next ? null : pathname);
     try {
-      window.localStorage.setItem(storageKey, open ? "closed" : "open");
+      window.localStorage.setItem(storageKey, next ? "open" : "closed");
       window.dispatchEvent(new Event(NAV_EVENT));
     } catch {
       // Not remembered this time - nothing else depends on it.
