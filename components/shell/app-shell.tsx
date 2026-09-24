@@ -439,7 +439,7 @@ function UserMenu({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-11 z-50 w-60 overflow-hidden rounded-lg border border-line bg-surface shadow-[var(--shadow-pop)]"
+          className="absolute right-0 top-11 z-50 w-60 overflow-hidden rounded-lg bg-surface shadow-[var(--shadow-pop)]"
         >
           <div className="border-b border-line px-3 py-3">
             <p className="truncate text-[0.8125rem] font-semibold">{user.name}</p>

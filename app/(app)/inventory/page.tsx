@@ -93,7 +93,7 @@ export default async function InventoryPage(props: PageProps<"/inventory">) {
       </div>
 
       <Suspense
-        fallback={<div className="mb-5 h-[6.5rem] rounded-lg border border-line bg-surface" />}
+        fallback={<div className="mb-5 h-[6.5rem] rounded-lg bg-surface shadow-[var(--shadow-card)]" />}
       >
         <PartsFilters categories={categories} resultCount={items.length} />
       </Suspense>

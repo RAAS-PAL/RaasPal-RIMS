@@ -68,7 +68,7 @@ export function AddPartForm({
         aria-labelledby="add-part-title"
         className={cx(
           "m-auto max-h-[min(44rem,calc(100dvh-2rem))] w-[min(36rem,calc(100vw-2rem))]",
-          "overflow-y-auto rounded-xl border border-line bg-surface p-0 text-fg",
+          "overflow-y-auto rounded-xl bg-surface p-0 text-fg",
           "shadow-[var(--shadow-pop)] backdrop:bg-transparent",
         )}
       >

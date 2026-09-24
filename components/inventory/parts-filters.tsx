@@ -61,7 +61,7 @@ export function PartsFilters({
   const filtered = Boolean(query || category || lowStock);
 
   return (
-    <div className="mb-5 rounded-lg border border-line bg-surface p-3">
+    <div className="mb-5 rounded-lg bg-surface shadow-[var(--shadow-card)] p-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-0 flex-1 basis-52">
           <Search

@@ -76,7 +76,7 @@ export default async function AccountsPage() {
 
       <div className="mb-5 grid gap-3 sm:grid-cols-3">
         {ROLES.map((role) => (
-          <div key={role} className="rounded-lg border border-line bg-surface p-4">
+          <div key={role} className="rounded-lg bg-surface shadow-[var(--shadow-card)] p-4">
             <p className="text-[0.875rem] font-semibold">{ROLE_LABEL[role]}</p>
             <p className="mt-1 text-[0.75rem] leading-relaxed text-muted">
               {ROLE_DESCRIPTION[role]}

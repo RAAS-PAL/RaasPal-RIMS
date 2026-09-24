@@ -183,7 +183,7 @@ export function CommandPalette({ robots }: { robots: RobotIndexEntry[] }) {
         }}
         aria-label="Search"
         className={cx(
-          "mx-auto mt-[12vh] w-[min(38rem,calc(100vw-2rem))] rounded-xl border border-line",
+          "mx-auto mt-[12vh] w-[min(38rem,calc(100vw-2rem))] rounded-xl",
           "bg-surface p-0 text-fg shadow-[var(--shadow-pop)] backdrop:bg-transparent",
         )}
       >

@@ -231,7 +231,7 @@ function AccountRowView({
         <tr className="bg-subtle">
           <td colSpan={5} className="px-4 pb-4 sm:px-5">
             <div className="grid gap-3 lg:grid-cols-2">
-              <div className="rounded-lg border border-line bg-surface p-4">
+              <div className="rounded-lg bg-surface shadow-[var(--shadow-card)] p-4">
                 <p className="mb-3 text-[0.8125rem] font-semibold">
                   Roles for {account.name}
                 </p>
@@ -261,7 +261,7 @@ function AccountRowView({
               <div className="space-y-3">
                 {/* Passwords and any reset flow belong to the RAASPAL platform, which
                     owns identity now. RIMS holds no credential it could reset. */}
-                <div className="rounded-lg border border-line bg-surface p-4">
+                <div className="rounded-lg bg-surface shadow-[var(--shadow-card)] p-4">
                   <p className="mb-2 flex items-center gap-1.5 text-[0.8125rem] font-semibold">
                     <KeyRound size={14} aria-hidden className="text-muted" />
                     Password

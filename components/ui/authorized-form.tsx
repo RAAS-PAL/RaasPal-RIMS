@@ -121,7 +121,7 @@ export function AuthorizedForm({
         }}
         aria-labelledby="confirm-title"
         className={cx(
-          "m-auto w-[min(26rem,calc(100vw-2rem))] rounded-xl border border-line",
+          "m-auto w-[min(26rem,calc(100vw-2rem))] rounded-xl",
           "bg-surface p-0 text-fg shadow-[var(--shadow-pop)] backdrop:bg-transparent",
         )}
       >

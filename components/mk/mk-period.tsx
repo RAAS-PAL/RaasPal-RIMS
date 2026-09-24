@@ -32,7 +32,7 @@ function presets() {
 export function MkPeriod({ basePath, from, to }: { basePath: string; from: string; to: string }) {
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <nav aria-label="Quick periods" className="flex flex-wrap gap-1 rounded-lg border border-line bg-surface p-1">
+      <nav aria-label="Quick periods" className="flex flex-wrap gap-1 rounded-lg bg-surface p-1 shadow-[var(--shadow-card)]">
         {presets().map((p) => {
           const active = p.from === from && p.to === to;
           return (
@@ -41,7 +41,7 @@ export function MkPeriod({ basePath, from, to }: { basePath: string; from: strin
               href={`${basePath}?from=${p.from}&to=${p.to}`}
               className={cx(
                 "rounded-md px-2.5 py-1 text-[0.75rem] font-medium transition-colors",
-                active ? "bg-brand-solid text-white" : "text-muted hover:bg-inset hover:text-fg",
+                active ? "bg-brand-solid text-[var(--brand-on-solid)]" : "text-muted hover:bg-inset hover:text-fg",
               )}
             >
               {p.label}

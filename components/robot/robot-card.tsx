@@ -34,7 +34,7 @@ export function RobotCard({
   const status = asStockRoomStatus(entry.status) ?? "IN_STOCK";
 
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-lg border border-line bg-surface transition-colors duration-150 hover:border-line-strong focus-within:border-[var(--focus)]">
+    <article className="group relative flex flex-col overflow-hidden rounded-lg bg-surface shadow-[var(--shadow-card)] transition-shadow duration-150 hover:shadow-[var(--shadow-pop)] focus-within:ring-2 focus-within:ring-[var(--focus)]">
       <RobotImage
         name={entry.displayName}
         robotType={entry.robotType}

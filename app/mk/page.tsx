@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Enter PIN" };
 export default function MkPinPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center px-5 py-10">
-      <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-6 shadow-[var(--shadow-pop)]">
+      <div className="w-full max-w-sm rounded-xl bg-surface p-6 shadow-[var(--shadow-pop)]">
         <div className="mb-6 flex items-center gap-3">
           <Mark className="size-10" priority />
           <div className="leading-tight">

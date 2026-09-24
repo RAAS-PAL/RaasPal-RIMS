@@ -6,10 +6,9 @@
 
 /* ---------------------------------------------------------------------------
    RaasPal RIMS design tokens
-   Brand cyan #00BCE2 is sampled from the official wordmark. It is an identity
-   colour, not an action colour: at full strength it cannot carry white text,
-   so actions use the darkened ramp (--brand-solid) and the pure cyan is
-   reserved for the mark, meters, focus rings and data accents.
+   Brand cyan #00BCE2 is sampled from the official wordmark. Primary buttons
+   wear the logo cyan (--brand-solid, #18BEE5) with dark navy text: white text
+   on that cyan is only ~2:1, dark navy is ~8:1.
 --------------------------------------------------------------------------- */
 
 :root {
@@ -46,9 +45,10 @@
   --line-strong: #cbd6e0;
 
   /* Brand roles */
-  --brand-solid: var(--brand-700);
-  --brand-solid-hover: var(--brand-800);
-  --brand-on-solid: #ffffff;
+  /* Buttons wear the logo cyan. Dark text on it, because white on this cyan is ~2:1 and hard to read. */
+  --brand-solid: #18bee5;
+  --brand-solid-hover: #0fa9cf;
+  --brand-on-solid: #05202a;
   --brand-ink: #076c85;
   --brand-wash: var(--brand-50);
   --brand-meter: var(--brand-500);
@@ -80,6 +80,7 @@
   --meter-reserved: #7ccfe4;
 
   --shadow-pop: 0 12px 32px -12px rgb(11 22 34 / 0.28), 0 2px 6px -2px rgb(11 22 34 / 0.12);
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 2px 8px rgb(15 23 42 / 0.05); /* cards have no outline, just this */
 }
 
 [data-theme="dark"] {
@@ -130,6 +131,7 @@
   --meter-reserved: #16788f;
 
   --shadow-pop: 0 12px 32px -12px rgb(0 0 0 / 0.7), 0 2px 6px -2px rgb(0 0 0 / 0.5);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3); /* cards have no outline, just this */
 }
 
 @theme inline {

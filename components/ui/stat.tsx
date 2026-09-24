@@ -80,8 +80,8 @@ export function StatTile({
   );
 
   const className = cx(
-    "rounded-lg border border-line bg-surface p-4",
-    href && "transition-colors duration-150 hover:border-line-strong hover:bg-subtle",
+    "rounded-lg bg-surface p-4 shadow-[var(--shadow-card)]",
+    href && "transition-colors duration-150 hover:bg-subtle",
   );
 
   return href ? (
