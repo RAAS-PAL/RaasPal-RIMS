@@ -1,7 +1,7 @@
 import { KeyRound, Link2, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 
-import { CopyLink, MkDisableAccess, MkSetPin } from "@/components/mk/mk-pin-admin";
+import { CopyLink, MkDisableAccess, MkResetPin, MkSetPin } from "@/components/mk/mk-pin-admin";
 import { Chip } from "@/components/ui/badge";
 import { Panel, PanelBody, PanelHeader, PanelTitle } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
@@ -70,7 +70,14 @@ export default async function MkAccessPage() {
           <PanelBody className="space-y-5">
             {isAdmin ? (
               <>
-                <MkSetPin hasPin={status.pinSet} />
+                <div>
+                  <p className="mb-2 text-[0.8125rem] text-muted">Quickest: let RIMS make a random PIN and show it once.</p>
+                  <MkResetPin hasPin={status.pinSet} />
+                </div>
+                <div className="border-t border-line pt-4">
+                  <p className="mb-3 text-[0.8125rem] text-muted">Or type one yourself:</p>
+                  <MkSetPin hasPin={status.pinSet} />
+                </div>
                 {status.pinSet ? (
                   <div className="border-t border-line pt-4">
                     <MkDisableAccess />

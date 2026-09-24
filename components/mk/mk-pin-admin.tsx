@@ -1,14 +1,14 @@
 "use client";
 
-import { Copy, PowerOff } from "lucide-react";
+import { Copy, Loader2, PowerOff, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
 import { AuthorizedForm } from "@/components/ui/authorized-form";
 import { Button } from "@/components/ui/button";
 import { Field, TextInput } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
-import { disableMkAccessAction, setMkPinAction } from "@/lib/mk-actions";
+import { disableMkAccessAction, resetMkPinAction, setMkPinAction, type PinResetState } from "@/lib/mk-actions";
 
 /** Set (or change) MK's PIN. Changing it ends every MK session. */
 export function MkSetPin({ hasPin }: { hasPin: boolean }) {
@@ -80,5 +80,82 @@ export function CopyLink({ url }: { url: string }) {
         <Copy size={14} aria-hidden /> Copy
       </Button>
     </div>
+  );
+}
+
+/**
+ * One-click reset: a new random 6-digit PIN, shown here once to copy and send to MK. The old
+ * PIN stops working and everyone at MK is signed out.
+ */
+export function MkResetPin({ hasPin }: { hasPin: boolean }) {
+  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
+  const [result, setResult] = useState<PinResetState | null>(null);
+  const [pending, start] = useTransition();
+
+  function reset() {
+    start(async () => {
+      const r = await resetMkPinAction();
+      setResult(r);
+      setConfirming(false);
+      if (r.status === "ok") router.refresh();
+    });
+  }
+
+  if (result?.status === "ok" && result.pin) {
+    return (
+      <div className="rounded-lg bg-brand-wash p-4">
+        <p className="text-[0.8125rem] font-medium text-fg">New PIN for MK</p>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <span className="font-mono text-2xl font-semibold tracking-[0.3em] text-brand-ink">{result.pin}</span>
+          <CopyValue value={result.pin} label="PIN copied" />
+        </div>
+        <p className="mt-2 text-[0.75rem] text-muted">
+          Shown this once - copy it now and send it to MK. The old PIN no longer works and everyone at MK has been signed out.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {confirming ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-inset p-3">
+          <p className="min-w-0 flex-1 text-[0.8125rem] text-fg">
+            {hasPin ? "Make a new PIN? The current one stops working and everyone at MK is signed out." : "Make a PIN for MK now?"}
+          </p>
+          <Button variant="ghost" size="sm" onClick={() => setConfirming(false)} disabled={pending}>Cancel</Button>
+          <Button variant="primary" size="sm" onClick={reset} disabled={pending}>
+            {pending ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <RotateCcw size={14} aria-hidden />}
+            {hasPin ? "Reset PIN" : "Make PIN"}
+          </Button>
+        </div>
+      ) : (
+        <Button variant="secondary" size="sm" onClick={() => setConfirming(true)}>
+          <RotateCcw size={14} aria-hidden /> {hasPin ? "Reset PIN" : "Make a PIN for me"}
+        </Button>
+      )}
+      {result?.status === "error" ? <p role="alert" className="text-[0.8125rem] text-crit-ink">{result.message}</p> : null}
+    </div>
+  );
+}
+
+function CopyValue({ value, label }: { value: string; label: string }) {
+  const toast = useToast();
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(value);
+          toast.show(label, "ok");
+        } catch {
+          toast.show("Copy did not work - select it instead", "error");
+        }
+      }}
+    >
+      <Copy size={14} aria-hidden /> Copy
+    </Button>
   );
 }

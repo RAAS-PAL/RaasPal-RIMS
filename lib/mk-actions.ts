@@ -130,6 +130,23 @@ export async function setMkPinAction(_previous: ActionState, formData: FormData)
   }
 }
 
+/** The reset result carries the new PIN - the one time anyone can see it. */
+export interface PinResetState extends ActionState {
+  pin?: string;
+}
+
+export async function resetMkPinAction(): Promise<PinResetState> {
+  const auth = await authorize("mkstock:pin");
+  if (!auth.ok) return fail(auth.error);
+  try {
+    const result = await callBackend<{ pin: string }>("/api/v1/mk-stock/access/pin/reset", { method: "POST" });
+    refresh();
+    return { ...ok("New PIN made. The old PIN no longer works and MK must sign in again."), pin: result.pin };
+  } catch (error) {
+    return fail(describeBackendError(error, "The PIN could not be reset."));
+  }
+}
+
 export async function disableMkAccessAction(): Promise<ActionState> {
   const auth = await authorize("mkstock:pin");
   if (!auth.ok) return fail(auth.error);
