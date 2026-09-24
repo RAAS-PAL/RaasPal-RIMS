@@ -133,10 +133,13 @@ export async function callBackend<T>(path: string, options: RequestOptions = {})
  * <p>Returns the upstream {@link Response} untouched so the caller can forward the
  * status, content type and cache headers rather than reconstructing them.
  */
-export async function fetchBackendBinary(path: string): Promise<Response> {
-  const token = await tokenFromCookie();
+export async function fetchBackendBinary(
+  path: string,
+  options: { token?: string | null; headers?: Record<string, string> } = {},
+): Promise<Response> {
+  const token = options.token !== undefined ? options.token : await tokenFromCookie();
   return fetch(`${BASE_URL}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
     cache: "no-store",
   });
 }

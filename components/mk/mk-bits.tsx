@@ -1,5 +1,8 @@
+import { ImageOff } from "lucide-react";
+
+import { imageUrl } from "@/lib/image-url";
 import { Chip, StockBadge } from "@/components/ui/badge";
-import type { MkMovement, MkStatus } from "@/lib/mk-stock";
+import type { MkMovement, MkPart, MkStatus } from "@/lib/mk-stock";
 import { cx, num } from "@/lib/format";
 
 const STATE = { OK: "in-stock", LOW: "low-stock", OUT: "out-of-stock" } as const;
@@ -91,5 +94,27 @@ export function MiniBar({ value, max, tone = "brand" }: { value: number; max: nu
         style={{ width: `${pct}%`, background: tone === "brand" ? "var(--brand-500)" : "var(--warn-dot)" }}
       />
     </span>
+  );
+}
+
+/** Where a part's photo loads from: staff go through RIMS's image proxy, MK through /mk/image. */
+export function mkPhotoSrc(part: MkPart, audience: "staff" | "mk"): string | null {
+  if (!part.hasImage) return null;
+  if (audience === "staff") return imageUrl("mk-part", part.id, true, part.updatedAt);
+  return `/mk/image/${part.id}?v=${part.updatedAt.replace(/[^0-9]/g, "")}`;
+}
+
+/** A part's photo, or a quiet placeholder when it has none. */
+export function MkPartPhoto({ src, name, className = "size-10" }: { src: string | null; name: string; className?: string }) {
+  if (!src) {
+    return (
+      <span className={cx("flex shrink-0 items-center justify-center rounded-md bg-inset text-faint", className)} aria-hidden>
+        <ImageOff size={16} />
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- served by our own image proxy, already sized
+    <img src={src} alt={name} loading="lazy" className={cx("shrink-0 rounded-md bg-inset object-cover", className)} />
   );
 }

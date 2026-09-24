@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { CheckboxRow, Field, NumberInput, TextArea, TextInput } from "@/components/ui/field";
 import { createMkPartAction, updateMkPartAction } from "@/lib/mk-actions";
 import type { MkPart } from "@/lib/mk-stock";
+import { RobotImagePicker } from "@/components/robot/image-picker";
+import { mkPhotoSrc } from "./mk-bits";
 import { MkDialog } from "./mk-dialog";
 
 /**
@@ -82,6 +84,11 @@ export function MkPartForm({ part }: { part?: MkPart }) {
               </Field>
             </div>
           )}
+          <div className="mt-4">
+            <Field label="Photo" htmlFor="image" hint="Take one with your phone's camera or choose a file. It is resized before upload.">
+              <RobotImagePicker name="image" initialValue={part ? mkPhotoSrc(part, "staff") : null} />
+            </Field>
+          </div>
           <div className="mt-4">
             <Field label="Note" htmlFor="mk-note">
               <TextArea id="mk-note" name="note" rows={2} maxLength={1000} defaultValue={part?.note ?? ""} />

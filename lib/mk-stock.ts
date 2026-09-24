@@ -32,6 +32,7 @@ export interface MkPart {
   active: boolean;
   lastMovementOn: string | null;
   updatedAt: string;
+  hasImage: boolean;
 }
 
 export interface MkMovement {

@@ -1,6 +1,7 @@
 import { PackageOpen } from "lucide-react";
 import type { Metadata } from "next";
 
+import { mkPhotoSrc } from "@/components/mk/mk-bits";
 import { MkStockFilters, MkStockTable, filterParts } from "@/components/mk/mk-stock-table";
 import { MkViewerShell } from "@/components/mk/mk-viewer-shell";
 import { EmptyState, Panel, PanelFlush } from "@/components/ui/panel";
@@ -28,7 +29,7 @@ export default async function MkViewerStockPage(props: { searchParams: Promise<R
           <EmptyState icon={<PackageOpen size={26} aria-hidden />} title={all.length === 0 ? "No parts recorded yet" : "Nothing matches"} />
         ) : (
           <PanelFlush>
-            <MkStockTable parts={parts} partHref={(id) => `/mk/stock/${id}`} />
+            <MkStockTable parts={parts} partHref={(id) => `/mk/stock/${id}`} photoSrc={(p) => mkPhotoSrc(p, "mk")} />
           </PanelFlush>
         )}
       </Panel>

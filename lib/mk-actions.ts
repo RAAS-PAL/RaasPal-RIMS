@@ -29,6 +29,21 @@ function refresh() {
   revalidatePath("/mk-stock", "layout");
 }
 
+/**
+ * The photo field from the picker: absent = leave the photo alone, "" = remove it, a data URI
+ * = replace it. Saved after the part itself, through its own endpoint.
+ */
+async function savePhoto(partId: string, form: FormData) {
+  const image = form.get("image");
+  if (image === null) return;
+  const value = String(image);
+  if (value === "") {
+    await callBackend(`/api/v1/mk-stock/parts/${partId}/image`, { method: "DELETE" });
+  } else {
+    await callBackend(`/api/v1/mk-stock/parts/${partId}/image`, { method: "PUT", body: { image: value } });
+  }
+}
+
 function partBody(form: FormData) {
   return {
     partNo: text(form, "partNo"),
@@ -52,7 +67,13 @@ export async function createMkPartAction(_previous: ActionState, formData: FormD
   if (Number.isNaN(body.minLevel) || body.minLevel < 0) return fail("The minimum level must be 0 or more.");
   if (Number.isNaN(opening) || opening < 0) return fail("The opening stock must be 0 or more.");
   try {
-    await callBackend("/api/v1/mk-stock/parts", { method: "POST", body: { ...body, openingQuantity: opening } });
+    const part = await callBackend<{ id: string }>("/api/v1/mk-stock/parts", { method: "POST", body: { ...body, openingQuantity: opening } });
+    try {
+      await savePhoto(part.id, formData);
+    } catch (error) {
+      refresh();
+      return fail(`${body.partNo} was added, but the photo was not saved: ${describeBackendError(error, "try again from Edit details.")}`);
+    }
     refresh();
     return ok(`${body.partNo} added.`);
   } catch (error) {
@@ -74,6 +95,7 @@ export async function updateMkPartAction(_previous: ActionState, formData: FormD
       // The form sends a hidden "false" and, when ticked, a "true" - so look at every value.
       body: { ...body, active: formData.getAll("active").map(String).includes("true") },
     });
+    await savePhoto(id, formData);
     refresh();
     return ok(`${body.partNo} updated.`);
   } catch (error) {

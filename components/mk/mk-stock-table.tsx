@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import type { MkPart } from "@/lib/mk-stock";
 import { cx, num } from "@/lib/format";
-import { MkStatusBadge, mkDay } from "./mk-bits";
+import { MkPartPhoto, MkStatusBadge, mkDay } from "./mk-bits";
 
 /**
  * Every MK part and its stock. Shared by RAAS PAL staff (with {@code actions}) and MK's
@@ -12,10 +12,13 @@ import { MkStatusBadge, mkDay } from "./mk-bits";
 export function MkStockTable({
   parts,
   partHref,
+  photoSrc,
   actions,
 }: {
   parts: MkPart[];
   partHref: (id: string) => string;
+  /** Each part's photo URL (null = placeholder). */
+  photoSrc: (part: MkPart) => string | null;
   actions?: (part: MkPart) => ReactNode;
 }) {
   return (
@@ -37,11 +40,16 @@ export function MkStockTable({
           {parts.map((p) => (
             <tr key={p.id} className={cx("align-top hover:bg-subtle", !p.active && "opacity-55")}>
               <th scope="row" className="px-4 py-3 font-normal sm:px-5">
-                <Link href={partHref(p.id)} className="font-semibold underline-offset-2 hover:underline">{p.name}</Link>
-                <p className="mt-0.5 font-mono text-[0.6875rem] text-muted">
-                  {p.partNo}
-                  {!p.active ? " · retired" : ""}
-                </p>
+                <div className="flex items-start gap-3">
+                  <MkPartPhoto src={photoSrc(p)} name={p.name} />
+                  <div className="min-w-0">
+                    <Link href={partHref(p.id)} className="font-semibold underline-offset-2 hover:underline">{p.name}</Link>
+                    <p className="mt-0.5 font-mono text-[0.6875rem] text-muted">
+                      {p.partNo}
+                      {!p.active ? " · retired" : ""}
+                    </p>
+                  </div>
+                </div>
               </th>
               <td className="px-3 py-3 text-muted">{p.robotModel ?? "—"}</td>
               <td className="px-3 py-3 text-right">

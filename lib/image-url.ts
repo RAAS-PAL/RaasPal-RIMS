@@ -13,7 +13,7 @@
  * one image; a stale photo is the failure that matters.
  */
 export function imageUrl(
-  kind: "robot" | "part",
+  kind: "robot" | "part" | "mk-part",
   id: string,
   hasImage: boolean,
   updatedAt?: string | null,

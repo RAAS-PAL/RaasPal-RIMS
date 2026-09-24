@@ -18,6 +18,7 @@ import { fetchBackendBinary } from "@/lib/backend";
 const UPSTREAM: Record<string, string> = {
   robot: "/api/v1/inventory/robot-stock",
   part: "/api/v1/inventory/items",
+  "mk-part": "/api/v1/mk-stock/parts",
 };
 
 export async function GET(

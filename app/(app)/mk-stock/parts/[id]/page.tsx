@@ -2,7 +2,7 @@ import { History } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { MkStatusBadge, MovementTable, mkDay } from "@/components/mk/mk-bits";
+import { MkPartPhoto, MkStatusBadge, MovementTable, mkDay, mkPhotoSrc } from "@/components/mk/mk-bits";
 import { MkMoveStock } from "@/components/mk/mk-move-stock";
 import { MkPartForm } from "@/components/mk/mk-part-form";
 import { EmptyState, Panel, PanelBody, PanelFlush, PanelHeader, PanelTitle } from "@/components/ui/panel";
@@ -57,6 +57,7 @@ export default async function MkPartPage(props: { params: Promise<{ id: string }
       <div className="grid gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
         <Panel>
           <PanelBody>
+            <MkPartPhoto src={mkPhotoSrc(part, "staff")} name={part.name} className="mb-4 aspect-4/3 h-auto w-full" />
             <p className="text-[0.8125rem] text-muted">On hand</p>
             <p className="mt-1 flex items-baseline gap-2">
               <span className="font-mono text-3xl font-semibold tabular-nums">{num(part.quantityOnHand)}</span>

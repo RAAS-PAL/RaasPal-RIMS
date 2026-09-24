@@ -1,6 +1,7 @@
 import { PackagePlus } from "lucide-react";
 import type { Metadata } from "next";
 
+import { mkPhotoSrc } from "@/components/mk/mk-bits";
 import { MkMoveStock } from "@/components/mk/mk-move-stock";
 import { MkPartForm } from "@/components/mk/mk-part-form";
 import { MkStockFilters, MkStockTable, filterParts } from "@/components/mk/mk-stock-table";
@@ -52,6 +53,7 @@ export default async function MkStockListPage(props: { searchParams: Promise<Rec
             <MkStockTable
               parts={parts}
               partHref={(id) => `/mk-stock/parts/${id}`}
+              photoSrc={(p) => mkPhotoSrc(p, "staff")}
               actions={canEdit ? (p) => <MkMoveStock part={p} compact /> : undefined}
             />
           </PanelFlush>
