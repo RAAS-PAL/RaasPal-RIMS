@@ -17,7 +17,7 @@ import { MkDialog } from "./mk-dialog";
  * Add a part, or edit one. The count is not editable here: stock only changes through a
  * stock in, stock out or correction, so every change has a line in the history.
  */
-export function MkPartForm({ part }: { part?: MkPart }) {
+export function MkPartForm({ part, compact = false }: { part?: MkPart; compact?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const editing = Boolean(part);
@@ -25,8 +25,8 @@ export function MkPartForm({ part }: { part?: MkPart }) {
   return (
     <>
       {editing ? (
-        <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
-          <Pencil size={14} aria-hidden /> Edit details
+        <Button variant="secondary" size="sm" onClick={() => setOpen(true)} title={`Edit ${part!.name} - photo, name, minimum, location`}>
+          <Pencil size={14} aria-hidden /> {compact ? "Edit" : "Edit details"}
         </Button>
       ) : (
         <Button variant="primary" onClick={() => setOpen(true)}>

@@ -54,7 +54,16 @@ export default async function MkStockListPage(props: { searchParams: Promise<Rec
               parts={parts}
               partHref={(id) => `/mk-stock/parts/${id}`}
               photoSrc={(p) => mkPhotoSrc(p, "staff")}
-              actions={canEdit ? (p) => <MkMoveStock part={p} compact /> : undefined}
+              actions={
+                canEdit
+                  ? (p) => (
+                      <>
+                        <MkMoveStock part={p} compact />
+                        <MkPartForm part={p} compact />
+                      </>
+                    )
+                  : undefined
+              }
             />
           </PanelFlush>
         )}
